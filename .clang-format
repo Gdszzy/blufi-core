@@ -1,0 +1,4 @@
+BreakBeforeBraces: Attach
+SpaceBeforeParens: Never
+SpaceAfterParens: Never
+SpacesInConditionalStatements: false
