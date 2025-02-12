@@ -64,15 +64,16 @@ int onReceiveData(blufi::Core &core, val bytes) {
 EMSCRIPTEN_BINDINGS(blufi) {
   register_type<OnSendData>("(bytes: Uint8Array) => number");
   register_type<NegotiateResult>("(ret: number)=>void");
-  register_type<ScanWifiResult>("(wifiList:Array<Wifi>)=>void");
+  register_type<ScanWifiResult>("(wifiList:WifiList)=>void");
   register_type<BytesResult>("(bytes:Uint8Array)=>void");
+  register_vector<blufi::Wifi>("WifiList");
   class_<blufi::Core>("BlufiCore")
       .constructor(&newBlufiCore, allow_raw_pointers())
       .function("onReceiveData", &onReceiveData, async())
-      .function("negotiateKey", &negotiateKey, async())
-      .function("scanWifi", &scanWifi, async())
-      .function("connectWifi", &connectWifi, async())
-      .function("custom", &custom, async());
+      .function("negotiateKeyInternal", &negotiateKey, async())
+      .function("scanWifiInternal", &scanWifi, async())
+      .function("connectWifiInternal", &connectWifi, async())
+      .function("customInternal", &custom, async());
   class_<blufi::Wifi>("Wifi")
       .property("ssid", &blufi::Wifi::ssid)
       .property("rssi", &blufi::Wifi::rssi);

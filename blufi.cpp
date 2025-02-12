@@ -104,7 +104,7 @@ int Core::onReceiveData(std::span<uint8_t> data) {
           auto len = bodyBuffer[i];
           i += 1;
           int8_t rssi = (int8_t)(bodyBuffer[i] - 0xFF);
-          std::string ssid(bodyBuffer.data()[i], len);
+          std::string ssid((char *)bodyBuffer.data() + i + 1, len - 1);
           list.push_back(Wifi{.ssid = ssid, .rssi = rssi});
           i += len;
         }
