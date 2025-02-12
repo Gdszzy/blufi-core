@@ -24,6 +24,10 @@ std::vector<uint8_t> bigInt2Bytes(const BigInt &num) {
     }
     ++p;
   }
+  // remote zoer at end
+  while(bytes[bytes.size() - 1] == 0) {
+    bytes.pop_back();
+  }
   std::reverse(bytes.begin(), bytes.end());
   return bytes;
 }
@@ -37,8 +41,9 @@ DH::DH() {
   std::uniform_int_distribution<std::mt19937::result_type> dist(UINT16_MAX,
                                                                 UINT32_MAX);
   this->privKey = dist(rng);
+  // this->privKey = 19960911;
   // generate publick key
-  this->pubKey = (this->g ^ this->privKey) % this->p;
+  this->pubKey = boost::multiprecision::powm(this->g, this->privKey, this->p);
 }
 
 std::vector<uint8_t> DH::getPBytes() {
@@ -49,7 +54,7 @@ std::vector<uint8_t> DH::getPubBytes() { return bigInt2Bytes(this->pubKey); }
 std::vector<uint8_t> DH::generateKey(std::span<uint8_t> remotePubKeyBytes) {
   auto remotePubKey =
       bytes2BigInt(remotePubKeyBytes.data(), remotePubKeyBytes.size());
-  auto key = (remotePubKey ^ this->privKey) % this->p;
+  auto key = boost::multiprecision::powm(remotePubKey, this->privKey, this->p);
   return bigInt2Bytes(key);
 }
 } // namespace dh

@@ -1,5 +1,6 @@
 #include "msg.h"
 #include "uaes/uaes.h"
+#include <string>
 
 namespace msg {
 const uint16_t CRC_TB[] = {
@@ -35,13 +36,13 @@ const uint16_t CRC_TB[] = {
 };
 uint16_t caluCRC(std::vector<uint8_t> data) {
   // 0xFFFF
-  uint16_t crc = !0;
+  uint16_t crc = ~0;
   int i = 0;
   while(i < data.size()) {
-    crc = CRC_TB[(((crc >> 8) & 0xFF) ^ data[i])] ^ (crc << 8);
+    crc = CRC_TB[((uint8_t)(crc >> 8)) ^ data[i]] ^ (crc << 8);
     i++;
   }
-  return !crc;
+  return ~crc;
 }
 
 uint16_t caluChecksum(std::span<uint8_t> data, uint8_t seq) {
@@ -96,10 +97,9 @@ size_t Msg::fillFrame(uint8_t seq) {
   // checksum
   if(this->needChecksum) {
     frameCtrl |= 1 << FRAME_CTRL_POSITION_CHECKSUM;
-    auto checksum =
-        caluChecksum(std::span<uint8_t>(bodyPtr, bodyPtr + bodySize), seq);
-    bodyPtr[bodySize] = (checksum << 8) & 0xFF;
-    bodyPtr[bodySize + 1] = checksum & 0xFF;
+    auto checksum = caluChecksum(std::span<uint8_t>(bodyPtr, bodySize), seq);
+    bodyPtr[bodySize] = (uint8_t)checksum;
+    bodyPtr[bodySize + 1] = (uint8_t)(checksum >> 8);
     sendSize += 2;
   }
   // encrypt

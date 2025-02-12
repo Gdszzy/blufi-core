@@ -1,6 +1,6 @@
 CC = em++
-CFLAGS_COMMON = -Iinclude -I3rd -I3rd/multiprecision-Boost_1_86_0/include -I3rd/md5-c --std=c++20 -sASYNCIFY -sWASM_BIGINT
-CFLAGS = -O3 -Wall -lembind --emit-tsd interface.d.ts $(CFLAGS_COMMON)
+CFLAGS_COMMON = -Iinclude -I3rd -I3rd/multiprecision-Boost_1_86_0/include -I3rd/md5-c --std=c++20 
+CFLAGS = -O3 -Wall -lembind --emit-tsd interface.d.ts $(CFLAGS_COMMON) -sASYNCIFY
 TARGET = blufi.mjs
 OUTDIR = build
 
@@ -16,4 +16,4 @@ clean:
 	rm -rf $(OUTDIR)
 
 test: $(OUTDIR)
-	g++ -o $(OUTDIR)/test test.cpp dh.cpp $(CFLAGS_COMMON) && $(OUTDIR)/test
+	g++ -o $(OUTDIR)/test test.cpp msg.cpp 3rd/uaes/uaes.c $(CFLAGS_COMMON) && $(OUTDIR)/test

@@ -26,13 +26,10 @@ std::vector<uint8_t> val2vector(val list) {
 }
 
 blufi::Core *newBlufiCore(int mtu, OnSendData onSendData) {
-  consoleLog("exec");
   return new blufi::Core(mtu, [=](std::span<uint8_t> data) {
     auto jsBytes = val(typed_memory_view(data.size(), data.data()));
-    consoleLog("before send");
-    auto ret = onSendData(jsBytes).await();
-    consoleLog("end");
-    // consoleLog("raw ret" + std::to_string(ret));
+    // it will throw error so not need the result
+    onSendData(jsBytes).await();
     return 0;
   });
 }
@@ -71,11 +68,11 @@ EMSCRIPTEN_BINDINGS(blufi) {
   register_type<BytesResult>("(bytes:Uint8Array)=>void");
   class_<blufi::Core>("BlufiCore")
       .constructor(&newBlufiCore, allow_raw_pointers())
-      .function("onReceiveData", &onReceiveData)
-      .function("negotiateKey", &negotiateKey)
-      .function("scanWifi", &scanWifi)
-      .function("connectWifi", &connectWifi)
-      .function("custom", &custom);
+      .function("onReceiveData", &onReceiveData, async())
+      .function("negotiateKey", &negotiateKey, async())
+      .function("scanWifi", &scanWifi, async())
+      .function("connectWifi", &connectWifi, async())
+      .function("custom", &custom, async());
   class_<blufi::Wifi>("Wifi")
       .property("ssid", &blufi::Wifi::ssid)
       .property("rssi", &blufi::Wifi::rssi);
