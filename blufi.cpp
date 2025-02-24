@@ -1,7 +1,7 @@
 #include "blufi.h"
 #include "dh.h"
-#include "md5-c/md5.h"
-#include "uaes/uaes.h"
+#include "md5.h"
+#include "uaes.h"
 
 extern void consoleLog(std::string);
 

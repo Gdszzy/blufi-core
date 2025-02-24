@@ -1,7 +1,7 @@
 CC = em++
 CFLAGS_COMMON = -Iinclude -I3rd -I3rd/multiprecision-Boost_1_86_0/include -I3rd/md5-c --std=c++20 
-CFLAGS = -O3 -Wall -lembind --emit-tsd interface.d.ts $(CFLAGS_COMMON) -sASYNCIFY --post-js=mixin.js
-TARGET = blufi.mjs
+CFLAGS = -O3 -Wall -lembind $(CFLAGS_COMMON) -sASYNCIFY --post-js=mixin.js
+TARGET = blufi.js
 OUTDIR = build
 
 all: $(OUTDIR)/$(TARGET)

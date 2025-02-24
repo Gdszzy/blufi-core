@@ -417,6 +417,10 @@ typedef struct {
     uint8_t cipher_block[16u];
 } UAES_CFB_Ctx_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Initialize the context for AES CFB mode.
  *
@@ -502,6 +506,9 @@ extern void UAES_CFB_Encrypt(UAES_CFB_Ctx_t *ctx,
  * @param output The buffer to write the encrypted data to.
  * @param data_len The length of the data in bytes.
  */
+
+
+
 extern void UAES_CFB_SimpleEncrypt(uint8_t segment_size,
                                    const uint8_t *key,
                                    size_t key_len,
@@ -545,6 +552,11 @@ extern void UAES_CFB_SimpleDecrypt(uint8_t segment_size,
                                    const uint8_t *input,
                                    uint8_t *output,
                                    size_t data_len);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // UAES_ENABLE_CFB
 
 #if UAES_ENABLE_CFB1

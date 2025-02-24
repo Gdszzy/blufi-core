@@ -61,6 +61,8 @@ typedef struct {
 #endif // UAES_KEY_CONFIG
 
 #if UAES_32BIT_CONFIG == 0
+
+
 // Declare the static functions.
 static void Cipher(const UAES_AES_Ctx_t *ctx,
                    const uint8_t input[16u],

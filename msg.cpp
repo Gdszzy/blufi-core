@@ -1,5 +1,5 @@
 #include "msg.h"
-#include "uaes/uaes.h"
+#include "uaes.h"
 #include <string>
 
 namespace msg {
