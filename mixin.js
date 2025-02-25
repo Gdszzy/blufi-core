@@ -1,26 +1,65 @@
 (() => {
+  class TimeoutError extends Error { constructor() { super(); this.name = "TimeoutError"; } }
+  class SendError extends Error {
+    constructor(code) {
+      super()
+      this.name = "SendError";
+      this.code = code;
+    }
+    toString () {
+      return `${this.name}: ${this.message} (${this.code})`
+    }
+  }
+  class ReceiveError extends Error {
+    constructor(code) {
+      super(
+        code == 0x10 ? "Wrong Data Length" :
+          code == 0x20 ? "Invalid Sequence" :
+            code == 0x30 ? "Empty Data" :
+              code == 0x40 ? "No Key" :
+                code == 0x50 ? "Invalid Type" :
+                  code == 0x60 ? "Action Not Match" :
+                    code == 0x70 ? "Remote Error" :
+                      code == 0x80 ? "Not Implement" : "Unkown Error"
+      );
+      this.name = "ReceiveError";
+      this.code = code;
+    }
+    toString () {
+      return `${this.name}: ${this.message} (0x${this.code.toString(16)})`
+    }
+  }
+
+  Module.TimeoutError = TimeoutError
+  Module.ReceiveError = ReceiveError
+
   function delay (timeout) {
-    return new Promise((resolve) => {
-      setTimeout(resolve, timeout)
+    return new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new TimeoutError())
+      }, timeout)
     })
   }
+
   Module.BlufiCore = function () {
-    console.log(arguments)
     const instance = new Module.BlufiCoreInternal(...arguments)
-    this.onReceiveData = function () {
-      return instance.onReceiveData(...arguments)
+    this.onReceiveData = async function () {
+      const ret = await instance.onReceiveData(...arguments)
+      if (ret != 0) {
+        throw new ReceiveError(ret);
+      }
     }
     this.negotiateKey = function (timeout) {
       return Promise.race([new Promise(async (resolve, reject) => {
         const ret = await instance.negotiateKeyInternal((ret) => {
           if (ret) {
-            reject(ret)
+            reject(new SendError(ret))
           } else {
             resolve()
           }
         })
         if (ret) {
-          reject(ret);
+          reject(new SendError(ret));
         }
       }), delay(timeout)])
     }
@@ -30,7 +69,7 @@
           resolve(ret)
         })
         if (ret) {
-          reject(ret)
+          reject(new SendError(ret))
         }
       }), delay(timeout)])
     }
@@ -48,7 +87,7 @@
           resolve(list)
         })
         if (ret) {
-          reject(ret)
+          reject(new SendError(ret))
         }
       }), delay(timeout)])
     }
@@ -58,7 +97,7 @@
           resolve(ret)
         })
         if (ret) {
-          reject(ret)
+          reject(new SendError(ret))
         }
       }), delay(timeout)])
     }

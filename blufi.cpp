@@ -3,7 +3,7 @@
 #include "md5.h"
 #include "uaes.h"
 
-extern void consoleLog(std::string);
+// extern void consoleLog(std::string);
 
 namespace blufi {
 
@@ -29,34 +29,38 @@ Core::~Core() {
 }
 
 int Core::sendMsg(msg::Msg &msg) {
+  // while(sendLock.exchange(true, std::memory_order_acquire))
+  //   ;
   while(msg.hasNext()) {
     auto len = msg.fillFrame(this->sendSeq++);
     auto ret = this->onSendData(std::span(this->buffer, len));
     if(ret != 0) {
+      sendLock.store(false, std::memory_order_release);
       return ret;
     }
   }
+  // sendLock.store(false, std::memory_order_release);
   return 0;
 }
 
-int Core::onReceiveData(std::span<uint8_t> data) {
-  consoleLog("onReceive");
+uint16_t Core::onReceiveData(std::span<uint8_t> data) {
+  // consoleLog("onReceive");
   if(data.size() < 4) {
     // invalid length
-    return -1;
+    return 0x10;
   }
   uint8_t type = data[0] & 0b11;
   uint8_t subType = data[0] >> 2;
   uint8_t seq = data[2];
   if(seq != this->recvSeq) {
     // invalid seq
-    return -2;
+    return 0x20;
   }
   this->recvSeq++;
   uint8_t bodyLen = data[3];
   if(bodyLen == 0) {
     // empty data
-    return -3;
+    return 0x30;
   }
   bool end = false;
   uint8_t frameCtrl = data[1];
@@ -70,7 +74,7 @@ int Core::onReceiveData(std::span<uint8_t> data) {
     // encrypted
     if(this->key == NULL) {
       // need decrypt but no key
-      return -4;
+      return 0x40;
     }
     uint8_t iv[16] = {seq};
     UAES_CFB_SimpleDecrypt(128, this->key, 16, iv, tmpBody.data(),
@@ -82,21 +86,21 @@ int Core::onReceiveData(std::span<uint8_t> data) {
   } else {
     end = true;
   }
-  consoleLog(std::to_string(frameCtrl));
-  consoleLog(std::to_string(end));
-  consoleLog(std::to_string(type));
-  consoleLog(std::to_string(subType));
+  // consoleLog(std::to_string(frameCtrl));
+  // consoleLog(std::to_string(end));
+  // consoleLog(std::to_string(type));
+  // consoleLog(std::to_string(subType));
   // copy into bodyBuffer
   bodyBuffer.insert(bodyBuffer.end(), tmpBody.begin(), tmpBody.end());
   if(end) {
-    consoleLog("end");
+    // consoleLog("end");
     // process buffer
     if(type == msg::Type::VALUE) {
       if(subType == msg::SubType::WIFI_LIST_NEG) {
         // wifi list
         if(this->task != Task::ScanWifi) {
           // no match
-          return -6;
+          return 0x60;
         }
         std::vector<Wifi> list;
         int i = 0;
@@ -110,18 +114,18 @@ int Core::onReceiveData(std::span<uint8_t> data) {
         }
         std::get<ScanWifiResult>(this->onResult)(list);
       } else if(subType == msg::SubType::NEG) {
-        consoleLog("neg " + std::to_string(this->task));
+        // consoleLog("neg " + std::to_string(this->task));
         // negotiate result
         if(this->task != Task::Negotiate) {
           // no match
-          return -6;
+          return 0x60;
         }
-        consoleLog("neg 2");
+        // consoleLog("neg 2");
         if(this->key) {
           free(this->key);
           this->key = NULL;
         }
-        consoleLog("body length: " + std::to_string(bodyBuffer.size()));
+        // consoleLog("body length: " + std::to_string(bodyBuffer.size()));
         auto key = this->tmpKey->generateKey(bodyBuffer);
         this->key = (uint8_t *)malloc(16);
         MD5Context ctx;
@@ -130,11 +134,11 @@ int Core::onReceiveData(std::span<uint8_t> data) {
         md5Finalize(&ctx);
         // copy
         std::copy(ctx.digest, ctx.digest + 16, this->key);
-        char buf[33];
-        for(int i = 0; i < 16; i++) {
-          sprintf(buf + (i * 2), "%02x", this->key[i]);
-        }
-        consoleLog(buf);
+        // char buf[33];
+        // for(int i = 0; i < 16; i++) {
+        //   sprintf(buf + (i * 2), "%02x", this->key[i]);
+        // }
+        // consoleLog(buf);
         // send result
         int ret = 0;
         {
@@ -149,27 +153,27 @@ int Core::onReceiveData(std::span<uint8_t> data) {
         // custom data
         if(this->task != Task::Custom) {
           // no match
-          return -6;
+          return 0x60;
         }
         std::get<BytesResult>(this->onResult)(bodyBuffer);
       } else if(subType == msg::SubType::WIFI_STATUS) {
         // wifi status
         if(this->task != Task::ConnectWifi) {
           // no match
-          return -6;
+          return 0x60;
         }
         std::get<BytesResult>(this->onResult)(bodyBuffer);
       } else if(subType == msg::SubType::ERROR) {
         // error
-        consoleLog("remote error: " + std::to_string(bodyBuffer[0]));
-        return -7;
+        // consoleLog("remote error: " + std::to_string(bodyBuffer[0]));
+        return 0x70 | bodyBuffer[0];
       } else {
         // not implement
-        return -8;
+        return 0x80;
       }
     } else {
       // invalid type
-      return -5;
+      return 0x50;
     }
   }
   return 0;

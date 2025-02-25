@@ -11,10 +11,10 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(NegotiateResult);
 EMSCRIPTEN_DECLARE_VAL_TYPE(ScanWifiResult);
 EMSCRIPTEN_DECLARE_VAL_TYPE(BytesResult);
 
-void consoleLog(std::string msg) {
-  auto console = val::global("console");
-  console.call<void>("log", msg);
-}
+// void consoleLog(std::string msg) {
+//   auto console = val::global("console");
+//   console.call<void>("log", msg);
+// }
 
 std::vector<uint8_t> val2vector(val list) {
   std::vector<uint8_t> arr;
@@ -29,8 +29,10 @@ blufi::Core *newBlufiCore(int mtu, OnSendData onSendData) {
   return new blufi::Core(mtu, [=](std::span<uint8_t> data) {
     auto jsBytes = val(typed_memory_view(data.size(), data.data()));
     // it will throw error so not need the result
-    onSendData(jsBytes).await();
-    return 0;
+    auto ret = onSendData(jsBytes).await();
+    auto console = val::global("console");
+    console.call<void>("log", ret);
+    return ret.as<int>();
   });
 }
 

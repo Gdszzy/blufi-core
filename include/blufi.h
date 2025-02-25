@@ -3,6 +3,7 @@
 
 #include "dh.h"
 #include "msg.h"
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <span>
@@ -30,7 +31,7 @@ class Core {
 public:
   Core(int mtu, std::function<int(std::span<uint8_t>)> onSendData);
   ~Core();
-  int onReceiveData(std::span<uint8_t>);
+  uint16_t onReceiveData(std::span<uint8_t>);
 
   // function are
   int negotiateKey(NegotiateResult onResult);
@@ -39,6 +40,7 @@ public:
   int connectWifi(std::string ssid, std::string pass, BytesResult onResult);
 
 private:
+  std::atomic<bool> sendLock = false;
   uint8_t *buffer;
   int mtu;
   std::span<uint8_t> bufferSpan;
