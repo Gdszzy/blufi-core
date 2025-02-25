@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_EXECUTABLE_SUFFIX ".js")
 
-set(FLAGS_COMMON "-Wall -Os -lembind -sASYNCIFY --post-js=${CMAKE_SOURCE_DIR}/mixin.js --minify 0")
+set(FLAGS_COMMON "-Wall -Os")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS_COMMON}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_COMMON}")
 
@@ -17,9 +17,17 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/uaes)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/md5-c)
 
 # blufi
-add_executable(blufi wasm.cpp msg.cpp dh.cpp blufi.cpp)
-target_include_directories(blufi PRIVATE 
+add_library(core msg.cpp dh.cpp blufi.cpp)
+target_include_directories(core PUBLIC 
     ${CMAKE_SOURCE_DIR}/include 
     3rd/multiprecision-Boost_1_86_0/include
 )
-target_link_libraries(blufi PRIVATE uaes md5)
+target_link_libraries(core PRIVATE uaes md5)
+
+# wasm
+add_executable(blufi wasm.cpp)
+target_include_directories(blufi PUBLIC 
+    ${CMAKE_SOURCE_DIR}/include 
+)
+target_link_libraries(blufi PRIVATE core)
+target_link_options(blufi PRIVATE -lembind -Os -sASYNCIFY --post-js=${CMAKE_SOURCE_DIR}/mixin.js --minify 0 -flto -sDYNAMIC_EXECUTION=0 -sEXPORT_ES6=1 -sENVIRONMENT=webview)

@@ -56,7 +56,7 @@ int negotiateKey(blufi::Core &core, NegotiateResult onResult) {
   return core.negotiateKey([=](int result) { onResult(result); });
 }
 
-int onReceiveData(blufi::Core &core, val bytes) {
+EMSCRIPTEN_KEEPALIVE int onReceiveData(blufi::Core &core, val bytes) {
   auto buf = val2vector(bytes);
   return core.onReceiveData(std::span(buf));
 }
@@ -67,7 +67,7 @@ EMSCRIPTEN_BINDINGS(blufi) {
   register_type<ScanWifiResult>("(wifiList:WifiList)=>void");
   register_type<BytesResult>("(bytes:Uint8Array)=>void");
   register_vector<blufi::Wifi>("WifiList");
-  class_<blufi::Core>("BlufiCore")
+  class_<blufi::Core>("BlufiCoreInternal")
       .constructor(&newBlufiCore, allow_raw_pointers())
       .function("onReceiveData", &onReceiveData, async())
       .function("negotiateKeyInternal", &negotiateKey, async())
