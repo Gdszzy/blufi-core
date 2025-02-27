@@ -3,16 +3,43 @@
 
 #include "dh.h"
 #include "msg.h"
-#include <atomic>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <span>
 #include <string>
 #include <variant>
 
+/**
+ * 发送请求和onReceiveData返回说明，1字节长度，前4位表示Type 后4位表示subType
+ * 发送阶段错误：
+ *  0xF0
+ * 接受阶段错误：
+ *  0x10 错误数据长度
+ *  0x20 错误序号
+ *  0x30 空数据
+ *  0x40 缺少密钥
+ *  0x50 非法Type
+ *  0x60 操作类型不匹配
+ *  0x70 远程错误 后四位为远程错误类型
+ *  0x80 未实现功能
+ */
+
 namespace blufi {
 
 using namespace std;
+
+enum ErrorCode {
+  SendError = 0xF0,
+  WrongDataLen = 0x10,
+  WrongSeq = 0x20,
+  EmptyData = 0x30,
+  KeyStateNotMatch = 0x40,
+  InvalidType = 0x50,
+  ActionNotMatch = 0x60,
+  RemoteError = 0x70,
+  NotImplement = 0x80
+};
 
 typedef struct {
   std::string ssid;
@@ -31,16 +58,15 @@ class Core {
 public:
   Core(int mtu, std::function<int(std::span<uint8_t>)> onSendData);
   ~Core();
-  uint16_t onReceiveData(std::span<uint8_t>);
+  uint8_t onReceiveData(std::span<uint8_t>);
 
   // function are
-  int negotiateKey(NegotiateResult onResult);
-  int custom(std::vector<uint8_t>, BytesResult onResult);
-  int scanWifi(ScanWifiResult onResult);
-  int connectWifi(std::string ssid, std::string pass, BytesResult onResult);
+  uint8_t negotiateKey(NegotiateResult onResult);
+  uint8_t custom(std::vector<uint8_t>, BytesResult onResult);
+  uint8_t scanWifi(ScanWifiResult onResult);
+  uint8_t connectWifi(std::string ssid, std::string pass, BytesResult onResult);
 
 private:
-  std::atomic<bool> sendLock = false;
   uint8_t *buffer;
   int mtu;
   std::span<uint8_t> bufferSpan;
@@ -56,7 +82,10 @@ private:
   std::vector<uint8_t> bodyBuffer;
   OnResult onResult;
 
-  int sendMsg(msg::Msg &msg);
+  std::deque<std::vector<uint8_t>> cachedRecvBuffer;
+  bool sending = false;
+
+  uint8_t sendMsg(msg::Msg &msg);
 };
 } // namespace blufi
 

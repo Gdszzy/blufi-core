@@ -30,8 +30,6 @@ blufi::Core *newBlufiCore(int mtu, OnSendData onSendData) {
     auto jsBytes = val(typed_memory_view(data.size(), data.data()));
     // it will throw error so not need the result
     auto ret = onSendData(jsBytes).await();
-    auto console = val::global("console");
-    console.call<void>("log", ret);
     return ret.as<int>();
   });
 }

@@ -1,37 +1,20 @@
 (() => {
   class TimeoutError extends Error { constructor() { super(); this.name = "TimeoutError"; } }
-  class SendError extends Error {
+  class BlufiCoreError extends Error {
     constructor(code) {
-      super()
-      this.name = "SendError";
+      super();
+      this.name = "BlufiCoreError";
       this.code = code;
     }
     toString () {
-      return `${this.name}: ${this.message} (${this.code})`
-    }
-  }
-  class ReceiveError extends Error {
-    constructor(code) {
-      super(
-        code == 0x10 ? "Wrong Data Length" :
-          code == 0x20 ? "Invalid Sequence" :
-            code == 0x30 ? "Empty Data" :
-              code == 0x40 ? "No Key" :
-                code == 0x50 ? "Invalid Type" :
-                  code == 0x60 ? "Action Not Match" :
-                    code == 0x70 ? "Remote Error" :
-                      code == 0x80 ? "Not Implement" : "Unkown Error"
-      );
-      this.name = "ReceiveError";
-      this.code = code;
-    }
-    toString () {
-      return `${this.name}: ${this.message} (0x${this.code.toString(16)})`
+      return `${this.name}: 0x${this.code.toString(16)}`
     }
   }
 
   Module.TimeoutError = TimeoutError
-  Module.ReceiveError = ReceiveError
+  Module.BlufiCoreError = BlufiCoreError
+
+  let processing = null
 
   function delay (timeout) {
     return new Promise((_, reject) => {
@@ -41,40 +24,64 @@
     })
   }
 
+  function checkProcessing () {
+    if (processing) {
+      throw new Error("Some Operation Processing")
+    }
+  }
+
+  function createProcessingPromise (callback) {
+    return (new Promise((resolve, reject) => {
+      processing = {
+        reject
+      }
+      callback(resolve, reject)
+    })).finally(() => {
+      processing = null
+    })
+  }
+
   Module.BlufiCore = function () {
     const instance = new Module.BlufiCoreInternal(...arguments)
     this.onReceiveData = async function () {
       const ret = await instance.onReceiveData(...arguments)
       if (ret != 0) {
-        throw new ReceiveError(ret);
+        if (processing) {
+          processing.reject(new BlufiCoreError(ret))
+        } else {
+          console.error("Not handled core error: 0x" + ret.toString(16))
+        }
       }
     }
     this.negotiateKey = function (timeout) {
-      return Promise.race([new Promise(async (resolve, reject) => {
+      checkProcessing();
+      return Promise.race([createProcessingPromise(async (resolve, reject) => {
         const ret = await instance.negotiateKeyInternal((ret) => {
           if (ret) {
-            reject(new SendError(ret))
+            reject(new BlufiCoreError(ret))
           } else {
             resolve()
           }
         })
         if (ret) {
-          reject(new SendError(ret));
+          reject(new BlufiCoreError(ret));
         }
       }), delay(timeout)])
     }
     this.custom = function (bytes, timeout) {
-      return Promise.race([new Promise(async (resolve, reject) => {
+      checkProcessing();
+      return Promise.race([createProcessingPromise(async (resolve, reject) => {
         const ret = await instance.customInternal(bytes, (ret) => {
           resolve(ret)
         })
         if (ret) {
-          reject(new SendError(ret))
+          reject(new BlufiCoreError(ret))
         }
       }), delay(timeout)])
     }
     this.scanWifi = function (timeout) {
-      return Promise.race([new Promise(async (resolve, reject) => {
+      checkProcessing();
+      return Promise.race([createProcessingPromise(async (resolve, reject) => {
         const ret = await instance.scanWifiInternal((ret) => {
           const list = [];
           for (let i = 0; i < ret.size(); i++) {
@@ -87,17 +94,18 @@
           resolve(list)
         })
         if (ret) {
-          reject(new SendError(ret))
+          reject(new BlufiCoreError(ret))
         }
       }), delay(timeout)])
     }
     this.connectWifi = function (ssid, pass, timeout) {
-      return Promise.race([new Promise(async (resolve, reject) => {
+      checkProcessing();
+      return Promise.race([createProcessingPromise(async (resolve, reject) => {
         const ret = await instance.connectWifiInternal(ssid, pass, (ret) => {
           resolve(ret)
         })
         if (ret) {
-          reject(new SendError(ret))
+          reject(new BlufiCoreError(ret))
         }
       }), delay(timeout)])
     }

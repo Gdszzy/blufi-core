@@ -28,22 +28,36 @@ Core::~Core() {
   }
 }
 
-int Core::sendMsg(msg::Msg &msg) {
-  // while(sendLock.exchange(true, std::memory_order_acquire))
-  //   ;
+uint8_t Core::sendMsg(msg::Msg &msg) {
+
   while(msg.hasNext()) {
     auto len = msg.fillFrame(this->sendSeq++);
+    sending = true;
     auto ret = this->onSendData(std::span(this->buffer, len));
+    sending = false;
     if(ret != 0) {
-      sendLock.store(false, std::memory_order_release);
-      return ret;
+      return ErrorCode::SendError;
+    }
+    // clear cached buffer
+    while(cachedRecvBuffer.size() > 0) {
+      // puts("clear!!!");
+      auto item = cachedRecvBuffer.front();
+      cachedRecvBuffer.pop_front();
+      int ret = onReceiveData(item);
+      if(ret) {
+        return ret;
+      }
     }
   }
-  // sendLock.store(false, std::memory_order_release);
   return 0;
 }
 
-uint16_t Core::onReceiveData(std::span<uint8_t> data) {
+uint8_t Core::onReceiveData(std::span<uint8_t> data) {
+  if(sending) {
+    // puts("just cache!!!");
+    cachedRecvBuffer.push_back(std::vector(data.begin(), data.end()));
+    return 0;
+  }
   // consoleLog("onReceive");
   if(data.size() < 4) {
     // invalid length
@@ -187,10 +201,11 @@ inline void pushBytes2Vec(std::vector<uint8_t> *buff,
   buff->insert(buff->end(), key->begin(), key->end());
 }
 
-int Core::negotiateKey(NegotiateResult onResult) {
-  int ret;
+uint8_t Core::negotiateKey(NegotiateResult onResult) {
+  cachedRecvBuffer.clear();
+
   if(this->tmpKey) {
-    return -1;
+    return ErrorCode::KeyStateNotMatch;
   }
   // setup
   this->bodyBuffer.clear();
@@ -202,6 +217,7 @@ int Core::negotiateKey(NegotiateResult onResult) {
   auto gBytes = this->tmpKey->getGBytes();
   auto pubKeyBytes = this->tmpKey->getPubBytes();
   auto total = pBytes.size() + gBytes.size() + pubKeyBytes.size() + 6;
+  int ret;
   // send length
   {
     uint8_t data[] = {NEG_SET_SEC_TOTAL_LEN, static_cast<uint8_t>(total >> 8),
@@ -238,9 +254,10 @@ int Core::negotiateKey(NegotiateResult onResult) {
   }
   return 0;
 }
-int Core::custom(std::vector<uint8_t> data, BytesResult onResult) {
+uint8_t Core::custom(std::vector<uint8_t> data, BytesResult onResult) {
+  cachedRecvBuffer.clear();
   if(this->key == NULL) {
-    return -1;
+    return ErrorCode::KeyStateNotMatch;
   }
 
   this->bodyBuffer.clear();
@@ -255,7 +272,9 @@ int Core::custom(std::vector<uint8_t> data, BytesResult onResult) {
   }
   return 0;
 }
-int Core::scanWifi(ScanWifiResult onResult) {
+uint8_t Core::scanWifi(ScanWifiResult onResult) {
+  cachedRecvBuffer.clear();
+
   this->bodyBuffer.clear();
   this->task = Task::ScanWifi;
   this->onResult = onResult;
@@ -268,10 +287,11 @@ int Core::scanWifi(ScanWifiResult onResult) {
   }
   return 0;
 }
-int Core::connectWifi(std::string ssid, std::string pass,
-                      BytesResult onResult) {
+uint8_t Core::connectWifi(std::string ssid, std::string pass,
+                          BytesResult onResult) {
+  cachedRecvBuffer.clear();
   if(this->key == NULL) {
-    return -1;
+    return ErrorCode::KeyStateNotMatch;
   }
 
   this->bodyBuffer.clear();
