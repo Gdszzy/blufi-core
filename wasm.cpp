@@ -28,9 +28,7 @@ std::vector<uint8_t> val2vector(val list) {
 blufi::Core *newBlufiCore(int mtu, OnSendData onSendData) {
   return new blufi::Core(mtu, [=](std::span<uint8_t> data) {
     auto jsBytes = val(typed_memory_view(data.size(), data.data()));
-    // it will throw error so not need the result
-    auto ret = onSendData(jsBytes).await();
-    return ret.as<int>();
+    return onSendData(jsBytes).await().as<int>();
   });
 }
 
@@ -56,12 +54,22 @@ int negotiateKey(blufi::Core &core, NegotiateResult onResult) {
   return core.negotiateKey([=](int result) { onResult(result); });
 }
 
-EMSCRIPTEN_KEEPALIVE int onReceiveData(blufi::Core &core, val bytes) {
+int onReceiveData(blufi::Core &core, val bytes) {
   auto buf = val2vector(bytes);
   return core.onReceiveData(std::span(buf));
 }
 
+// EMSCRIPTEN_DECLARE_VAL_TYPE(TestCallback);
+// EMSCRIPTEN_KEEPALIVE int test(TestCallback callback) {
+//   uint8_t list[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+//   val ret = callback(val(typed_memory_view(sizeof(list), list))).await();
+//   return ret.as<int>();
+// }
+
 EMSCRIPTEN_BINDINGS(blufi) {
+  // register_type<TestCallback>("(bytes:Uint8Array)=>number");
+  // function("test", &test);
+
   register_type<OnSendData>("(bytes: Uint8Array) => number");
   register_type<NegotiateResult>("(ret: number)=>void");
   register_type<ScanWifiResult>("(wifiList:WifiList)=>void");
