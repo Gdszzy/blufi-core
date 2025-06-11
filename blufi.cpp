@@ -3,18 +3,18 @@
 #include "md5.h"
 #include "uaes.h"
 
-// extern void consoleLog(std::string);
+extern void consoleLog(std::string);
 
 namespace blufi {
 
 const uint8_t NEG_SET_SEC_TOTAL_LEN = 0x00;
 const uint8_t NEG_SET_SEC_ALL_DATA = 0x01;
 
-Core::Core(int mtu, std::function<int(std::span<uint8_t>)> onSendData) {
+Core::Core(int mtu, OnMessage onMessage) {
   this->mtu = mtu;
   this->buffer = (uint8_t *)malloc(mtu);
   this->bufferSpan = std::span(this->buffer, mtu);
-  this->onSendData = onSendData;
+  this->onMessage = onMessage;
 }
 Core::~Core() {
   free(this->buffer);
@@ -28,36 +28,14 @@ Core::~Core() {
   }
 }
 
-uint8_t Core::sendMsg(msg::Msg &msg) {
-
+void Core::fillSendData(msg::Msg &msg, SendData &sendData) {
   while(msg.hasNext()) {
     auto len = msg.fillFrame(this->sendSeq++);
-    sending = true;
-    auto ret = this->onSendData(std::span(this->buffer, len));
-    sending = false;
-    if(ret != 0) {
-      return ErrorCode::SendError;
-    }
-    // clear cached buffer
-    while(cachedRecvBuffer.size() > 0) {
-      // puts("clear!!!");
-      auto item = cachedRecvBuffer.front();
-      cachedRecvBuffer.pop_front();
-      int ret = onReceiveData(item);
-      if(ret) {
-        return ret;
-      }
-    }
+    sendData.push_back(std::vector<uint8_t>(this->buffer, this->buffer + len));
   }
-  return 0;
 }
 
 uint8_t Core::onReceiveData(std::span<uint8_t> data) {
-  if(sending) {
-    // puts("just cache!!!");
-    cachedRecvBuffer.push_back(std::vector(data.begin(), data.end()));
-    return 0;
-  }
   // consoleLog("onReceive");
   if(data.size() < 4) {
     // invalid length
@@ -112,10 +90,6 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
     if(type == msg::Type::VALUE) {
       if(subType == msg::SubType::WIFI_LIST_NEG) {
         // wifi list
-        if(this->task != Task::ScanWifi) {
-          // no match
-          return 0x60;
-        }
         std::vector<Wifi> list;
         int i = 0;
         while(i < bodyBuffer.size()) {
@@ -126,14 +100,11 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
           list.push_back(Wifi{.ssid = ssid, .rssi = rssi});
           i += len;
         }
-        std::get<ScanWifiResult>(this->onResult)(list);
+        this->onMessage(type, subType, &list);
+        // std::get<ScanWifiResult>(this->onResult)(list);
       } else if(subType == msg::SubType::NEG) {
         // consoleLog("neg " + std::to_string(this->task));
         // negotiate result
-        if(this->task != Task::Negotiate) {
-          // no match
-          return 0x60;
-        }
         // consoleLog("neg 2");
         if(this->key) {
           free(this->key);
@@ -154,32 +125,23 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
         // }
         // consoleLog(buf);
         // send result
-        int ret = 0;
+        SendData setSecModeBuffer;
         {
           uint8_t data[] = {0b11};
           msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_SEC_MODE,
                        std::span(data, 1), false, NULL, bufferSpan);
-          ret = sendMsg(msg);
+          fillSendData(msg, setSecModeBuffer);
         }
-        // callback
-        std::get<NegotiateResult>(this->onResult)(ret);
+        // 这个消息体正常只有一片
+        this->onMessage(type, subType, &setSecModeBuffer[0]);
       } else if(subType == msg::SubType::CUSTOM_DATA) {
         // custom data
-        if(this->task != Task::Custom) {
-          // no match
-          return 0x60;
-        }
-        std::get<BytesResult>(this->onResult)(bodyBuffer);
+        this->onMessage(type, subType, &bodyBuffer);
       } else if(subType == msg::SubType::WIFI_STATUS) {
         // wifi status
-        if(this->task != Task::ConnectWifi) {
-          // no match
-          return 0x60;
-        }
-        std::get<BytesResult>(this->onResult)(bodyBuffer);
+        this->onMessage(type, subType, &bodyBuffer);
       } else if(subType == msg::SubType::ERROR) {
         // error
-        // consoleLog("remote error: " + std::to_string(bodyBuffer[0]));
         return 0x70 | bodyBuffer[0];
       } else {
         // not implement
@@ -201,33 +163,27 @@ inline void pushBytes2Vec(std::vector<uint8_t> *buff,
   buff->insert(buff->end(), key->begin(), key->end());
 }
 
-uint8_t Core::negotiateKey(NegotiateResult onResult) {
-  cachedRecvBuffer.clear();
+uint8_t Core::negotiateKey(SendData &SendData) {
 
   if(this->tmpKey) {
     return ErrorCode::KeyStateNotMatch;
   }
   // setup
   this->bodyBuffer.clear();
-  this->task = Task::Negotiate;
-  this->onResult = onResult;
+  SendData.clear();
 
   this->tmpKey = new dh::DH();
   auto pBytes = this->tmpKey->getPBytes();
   auto gBytes = this->tmpKey->getGBytes();
   auto pubKeyBytes = this->tmpKey->getPubBytes();
   auto total = pBytes.size() + gBytes.size() + pubKeyBytes.size() + 6;
-  int ret;
   // send length
   {
     uint8_t data[] = {NEG_SET_SEC_TOTAL_LEN, static_cast<uint8_t>(total >> 8),
                       static_cast<uint8_t>(total)};
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG,
                  std::span(data, sizeof(data)), false, NULL, this->bufferSpan);
-    ret = this->sendMsg(msg);
-    if(ret) {
-      return ret;
-    }
+    fillSendData(msg, SendData);
   }
   // send key
   {
@@ -247,82 +203,54 @@ uint8_t Core::negotiateKey(NegotiateResult onResult) {
     }
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG, keyBuffer, false, NULL,
                  bufferSpan);
-    ret = this->sendMsg(msg);
-    if(ret) {
-      return ret;
-    }
+    fillSendData(msg, SendData);
   }
   return 0;
 }
-uint8_t Core::custom(std::vector<uint8_t> data, BytesResult onResult) {
-  cachedRecvBuffer.clear();
+uint8_t Core::custom(SendData &SendData, std::vector<uint8_t> data) {
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
-
   this->bodyBuffer.clear();
-  this->task = Task::Custom;
-  this->onResult = onResult;
 
   msg::Msg msg(msg::Type::VALUE, msg::SubType::CUSTOM_DATA, std::span(data),
                true, this->key, bufferSpan);
-  int ret = this->sendMsg(msg);
-  if(ret) {
-    return ret;
-  }
+  fillSendData(msg, SendData);
   return 0;
 }
-uint8_t Core::scanWifi(ScanWifiResult onResult) {
-  cachedRecvBuffer.clear();
+uint8_t Core::scanWifi(SendData &SendData) {
 
   this->bodyBuffer.clear();
-  this->task = Task::ScanWifi;
-  this->onResult = onResult;
 
   msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::WIFI_NEG,
                std::span<uint8_t>(), false, NULL, bufferSpan);
-  int ret = this->sendMsg(msg);
-  if(ret) {
-    return ret;
-  }
+  fillSendData(msg, SendData);
   return 0;
 }
-uint8_t Core::connectWifi(std::string ssid, std::string pass,
-                          BytesResult onResult) {
-  cachedRecvBuffer.clear();
+uint8_t Core::connectWifi(SendData &SendData, std::string ssid,
+                          std::string pass) {
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
 
   this->bodyBuffer.clear();
-  this->task = Task::ConnectWifi;
-  this->onResult = onResult;
 
   {
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_SSID,
                  std::span<uint8_t>((uint8_t *)ssid.data(), ssid.size()), true,
                  this->key, bufferSpan);
-    int ret = this->sendMsg(msg);
-    if(ret) {
-      return ret;
-    }
+    fillSendData(msg, SendData);
   }
   {
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_PWD,
                  std::span<uint8_t>((uint8_t *)pass.data(), pass.size()), true,
                  this->key, bufferSpan);
-    int ret = this->sendMsg(msg);
-    if(ret) {
-      return ret;
-    }
+    fillSendData(msg, SendData);
   }
   {
     msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::END,
                  std::span<uint8_t>(), false, NULL, bufferSpan);
-    int ret = this->sendMsg(msg);
-    if(ret) {
-      return ret;
-    }
+    fillSendData(msg, SendData);
   }
   return 0;
 }

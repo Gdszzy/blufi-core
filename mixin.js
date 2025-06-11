@@ -1,113 +1,20 @@
 (() => {
-  class TimeoutError extends Error { constructor() { super(); this.name = "TimeoutError"; } }
-  class BlufiCoreError extends Error {
-    constructor(code) {
-      super();
-      this.name = "BlufiCoreError";
-      this.code = code;
-    }
-    toString () {
-      return `${this.name}: 0x${this.code.toString(16)}`
-    }
+  Module.MsgType = {
+    CONTROL_VALUE: 0,
+    VALUE: 1
   }
-
-  Module.TimeoutError = TimeoutError
-  Module.BlufiCoreError = BlufiCoreError
-
-  let processing = null
-
-  function delay (timeout) {
-    return new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new TimeoutError())
-      }, timeout)
-    })
-  }
-
-  function checkProcessing () {
-    if (processing) {
-      throw new Error("Some Operation Processing")
-    }
-  }
-
-  function createProcessingPromise (callback) {
-    return (new Promise((resolve, reject) => {
-      processing = {
-        reject
-      }
-      callback(resolve, reject)
-    })).finally(() => {
-      processing = null
-    })
-  }
-
-  Module.BlufiCore = function () {
-    const instance = new Module.BlufiCoreInternal(...arguments)
-    this.onReceiveData = async function () {
-      const ret = await instance.onReceiveData(...arguments)
-      if (ret != 0) {
-        if (processing) {
-          processing.reject(new BlufiCoreError(ret))
-        } else {
-          console.error("Not handled core error: 0x" + ret.toString(16))
-        }
-      }
-    }
-    this.negotiateKey = function (timeout) {
-      checkProcessing();
-      return Promise.race([createProcessingPromise(async (resolve, reject) => {
-        const ret = await instance.negotiateKeyInternal((ret) => {
-          if (ret) {
-            reject(new BlufiCoreError(ret))
-          } else {
-            resolve()
-          }
-        })
-        if (ret) {
-          reject(new BlufiCoreError(ret));
-        }
-      }), delay(timeout)])
-    }
-    this.custom = function (bytes, timeout) {
-      checkProcessing();
-      return Promise.race([createProcessingPromise(async (resolve, reject) => {
-        const ret = await instance.customInternal(bytes, (ret) => {
-          resolve(ret)
-        })
-        if (ret) {
-          reject(new BlufiCoreError(ret))
-        }
-      }), delay(timeout)])
-    }
-    this.scanWifi = function (timeout) {
-      checkProcessing();
-      return Promise.race([createProcessingPromise(async (resolve, reject) => {
-        const ret = await instance.scanWifiInternal((ret) => {
-          const list = [];
-          for (let i = 0; i < ret.size(); i++) {
-            const o = ret.get(i)
-            list.push({
-              ssid: o.ssid,
-              rssi: o.rssi
-            })
-          }
-          resolve(list)
-        })
-        if (ret) {
-          reject(new BlufiCoreError(ret))
-        }
-      }), delay(timeout)])
-    }
-    this.connectWifi = function (ssid, pass, timeout) {
-      checkProcessing();
-      return Promise.race([createProcessingPromise(async (resolve, reject) => {
-        const ret = await instance.connectWifiInternal(ssid, pass, (ret) => {
-          resolve(ret)
-        })
-        if (ret) {
-          reject(new BlufiCoreError(ret))
-        }
-      }), delay(timeout)])
-    }
+  Module.MsgSubType = {
+    // value
+    NEG: 0x00,
+    SET_SEC_MODE: 0x01,
+    SET_SSID: 0x02,
+    SET_PWD: 0x03,
+    CUSTOM_DATA: 0x13,
+    WIFI_LIST_NEG: 0x11,
+    WIFI_STATUS: 0x0F,
+    ERROR: 0x12,
+    // control value
+    END: 0x03,
+    WIFI_NEG: 0x09,
   }
 })();

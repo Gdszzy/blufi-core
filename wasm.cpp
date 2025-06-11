@@ -6,15 +6,14 @@
 
 using namespace emscripten;
 
-EMSCRIPTEN_DECLARE_VAL_TYPE(OnSendData);
-EMSCRIPTEN_DECLARE_VAL_TYPE(NegotiateResult);
-EMSCRIPTEN_DECLARE_VAL_TYPE(ScanWifiResult);
-EMSCRIPTEN_DECLARE_VAL_TYPE(BytesResult);
+EMSCRIPTEN_DECLARE_VAL_TYPE(OnMessage);
 
 // void consoleLog(std::string msg) {
 //   auto console = val::global("console");
 //   console.call<void>("log", msg);
 // }
+
+blufi::SendData sendData;
 
 std::vector<uint8_t> val2vector(val list) {
   std::vector<uint8_t> arr;
@@ -25,33 +24,63 @@ std::vector<uint8_t> val2vector(val list) {
   return arr;
 }
 
-blufi::Core *newBlufiCore(int mtu, OnSendData onSendData) {
-  return new blufi::Core(mtu, [=](std::span<uint8_t> data) {
-    auto jsBytes = val(typed_memory_view(data.size(), data.data()));
-    return onSendData(jsBytes).await().as<int>();
+val vector2val(std::vector<std::vector<uint8_t>> &data) {
+  val arr = val::array();
+  for(int i = 0; i < data.size(); i++) {
+    std::vector<uint8_t> &slice = data[i];
+    arr.set(i, typed_memory_view(slice.size(), slice.data()));
+  }
+  return arr;
+}
+
+blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
+  return new blufi::Core(mtu, [=](uint8_t type, uint8_t subType, void *data) {
+    // consoleLog("on msg");
+    if(type == msg::Type::VALUE) {
+      if(subType == msg::SubType::WIFI_LIST_NEG) {
+        // 只有wifi列表需要单独处理
+        std::vector<blufi::Wifi> *list = (std::vector<blufi::Wifi> *)data;
+        val wifiList = val::array();
+        for(int i = 0; i < list->size(); i++) {
+          blufi::Wifi &wifi = list->at(i);
+          val wifiInfo = val::object();
+          wifiInfo.set("ssid", wifi.ssid);
+          wifiInfo.set("rssi", wifi.rssi);
+          wifiList.set(i, wifiInfo);
+        }
+        // 回调
+        OnMessage(type, subType, wifiList);
+        return;
+      }
+    }
+    // 其他都当成字节数组处理
+    std::vector<uint8_t> *bytes = (std::vector<uint8_t> *)data;
+    OnMessage(type, subType, typed_memory_view(bytes->size(), bytes->data()));
   });
 }
 
-int scanWifi(blufi::Core &core, ScanWifiResult onResult) {
-  return core.scanWifi(
-      [=](std::vector<blufi::Wifi> result) { onResult(result); });
+val scanWifi(blufi::Core &core) {
+  sendData.clear();
+  std::ignore = core.scanWifi(sendData);
+  return vector2val(sendData);
 }
 
-int connectWifi(blufi::Core &core, std::string ssid, std::string pass,
-                BytesResult onResult) {
-  return core.connectWifi(ssid, pass, [=](const std::span<uint8_t> &result) {
-    onResult(val(typed_memory_view(result.size(), result.data())));
-  });
+val connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
+  sendData.clear();
+  std::ignore = core.connectWifi(sendData, ssid, pass);
+  return vector2val(sendData);
 };
 
-int custom(blufi::Core &core, val data, BytesResult onResult) {
-  return core.custom(val2vector(data), [=](const std::span<uint8_t> &result) {
-    onResult(val(typed_memory_view(result.size(), result.data())));
-  });
+val custom(blufi::Core &core, val data) {
+  sendData.clear();
+  std::ignore = core.custom(sendData, val2vector(data));
+  return vector2val(sendData);
 }
 
-int negotiateKey(blufi::Core &core, NegotiateResult onResult) {
-  return core.negotiateKey([=](int result) { onResult(result); });
+val negotiateKey(blufi::Core &core) {
+  sendData.clear();
+  std::ignore = core.negotiateKey(sendData);
+  return vector2val(sendData);
 }
 
 int onReceiveData(blufi::Core &core, val bytes) {
@@ -59,30 +88,14 @@ int onReceiveData(blufi::Core &core, val bytes) {
   return core.onReceiveData(std::span(buf));
 }
 
-// EMSCRIPTEN_DECLARE_VAL_TYPE(TestCallback);
-// EMSCRIPTEN_KEEPALIVE int test(TestCallback callback) {
-//   uint8_t list[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-//   val ret = callback(val(typed_memory_view(sizeof(list), list))).await();
-//   return ret.as<int>();
-// }
-
 EMSCRIPTEN_BINDINGS(blufi) {
-  // register_type<TestCallback>("(bytes:Uint8Array)=>number");
-  // function("test", &test);
+  register_type<OnMessage>("(type:number,subType:number,data:any)=>void");
 
-  register_type<OnSendData>("(bytes: Uint8Array) => number");
-  register_type<NegotiateResult>("(ret: number)=>void");
-  register_type<ScanWifiResult>("(wifiList:WifiList)=>void");
-  register_type<BytesResult>("(bytes:Uint8Array)=>void");
-  register_vector<blufi::Wifi>("WifiList");
-  class_<blufi::Core>("BlufiCoreInternal")
+  class_<blufi::Core>("BlufiCore")
       .constructor(&newBlufiCore, allow_raw_pointers())
       .function("onReceiveData", &onReceiveData, async())
-      .function("negotiateKeyInternal", &negotiateKey, async())
-      .function("scanWifiInternal", &scanWifi, async())
-      .function("connectWifiInternal", &connectWifi, async())
-      .function("customInternal", &custom, async());
-  class_<blufi::Wifi>("Wifi")
-      .property("ssid", &blufi::Wifi::ssid)
-      .property("rssi", &blufi::Wifi::rssi);
+      .function("negotiateKey", &negotiateKey, async())
+      .function("scanWifi", &scanWifi, async())
+      .function("connectWifi", &connectWifi, async())
+      .function("custom", &custom, async());
 }

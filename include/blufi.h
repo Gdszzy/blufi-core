@@ -46,25 +46,28 @@ typedef struct {
   std::int8_t rssi;
 } Wifi;
 
-using NegotiateResult = std::function<void(int result)>;
-using ScanWifiResult = std::function<void(const std::vector<Wifi> &)>;
-using BytesResult = std::function<void(const std::span<uint8_t> &)>;
+// using NegotiateResult = std::function<void(int result)>;
+// using ScanWifiResult = std::function<void(const std::vector<Wifi> &)>;
+// using BytesResult = std::function<void(const std::span<uint8_t> &)>;
 
-using OnResult = std::variant<BytesResult, NegotiateResult, ScanWifiResult>;
+// using OnResult = std::variant<BytesResult, NegotiateResult, ScanWifiResult>;
 
-enum Task { Unknown = 0, Negotiate, Custom, ScanWifi, ConnectWifi };
+using OnMessage =
+    std::function<void(uint8_t type, uint8_t subType, void *data)>;
+
+using SendData = std::vector<std::vector<uint8_t>>;
 
 class Core {
 public:
-  Core(int mtu, std::function<int(std::span<uint8_t>)> onSendData);
+  Core(int mtu, OnMessage onMessage);
   ~Core();
   uint8_t onReceiveData(std::span<uint8_t>);
 
   // function are
-  uint8_t negotiateKey(NegotiateResult onResult);
-  uint8_t custom(std::vector<uint8_t>, BytesResult onResult);
-  uint8_t scanWifi(ScanWifiResult onResult);
-  uint8_t connectWifi(std::string ssid, std::string pass, BytesResult onResult);
+  uint8_t negotiateKey(SendData &SendData);
+  uint8_t custom(SendData &SendData, std::vector<uint8_t>);
+  uint8_t scanWifi(SendData &SendData);
+  uint8_t connectWifi(SendData &SendData, std::string ssid, std::string pass);
 
 private:
   uint8_t *buffer;
@@ -78,14 +81,11 @@ private:
 
   dh::DH *tmpKey = NULL;
 
-  Task task = Task::Unknown;
   std::vector<uint8_t> bodyBuffer;
-  OnResult onResult;
 
-  std::deque<std::vector<uint8_t>> cachedRecvBuffer;
-  bool sending = false;
+  void fillSendData(msg::Msg &msg, SendData &sendData);
 
-  uint8_t sendMsg(msg::Msg &msg);
+  OnMessage onMessage;
 };
 } // namespace blufi
 
