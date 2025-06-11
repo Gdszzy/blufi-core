@@ -163,14 +163,13 @@ inline void pushBytes2Vec(std::vector<uint8_t> *buff,
   buff->insert(buff->end(), key->begin(), key->end());
 }
 
-uint8_t Core::negotiateKey(SendData &SendData) {
+uint8_t Core::negotiateKey(SendData &sendData) {
 
   if(this->tmpKey) {
     return ErrorCode::KeyStateNotMatch;
   }
   // setup
   this->bodyBuffer.clear();
-  SendData.clear();
 
   this->tmpKey = new dh::DH();
   auto pBytes = this->tmpKey->getPBytes();
@@ -183,7 +182,7 @@ uint8_t Core::negotiateKey(SendData &SendData) {
                       static_cast<uint8_t>(total)};
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG,
                  std::span(data, sizeof(data)), false, NULL, this->bufferSpan);
-    fillSendData(msg, SendData);
+    fillSendData(msg, sendData);
   }
   // send key
   {
@@ -203,11 +202,11 @@ uint8_t Core::negotiateKey(SendData &SendData) {
     }
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG, keyBuffer, false, NULL,
                  bufferSpan);
-    fillSendData(msg, SendData);
+    fillSendData(msg, sendData);
   }
   return 0;
 }
-uint8_t Core::custom(SendData &SendData, std::vector<uint8_t> data) {
+uint8_t Core::custom(SendData &sendData, std::vector<uint8_t> data) {
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
@@ -215,19 +214,19 @@ uint8_t Core::custom(SendData &SendData, std::vector<uint8_t> data) {
 
   msg::Msg msg(msg::Type::VALUE, msg::SubType::CUSTOM_DATA, std::span(data),
                true, this->key, bufferSpan);
-  fillSendData(msg, SendData);
+  fillSendData(msg, sendData);
   return 0;
 }
-uint8_t Core::scanWifi(SendData &SendData) {
+uint8_t Core::scanWifi(SendData &sendData) {
 
   this->bodyBuffer.clear();
 
   msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::WIFI_NEG,
                std::span<uint8_t>(), false, NULL, bufferSpan);
-  fillSendData(msg, SendData);
+  fillSendData(msg, sendData);
   return 0;
 }
-uint8_t Core::connectWifi(SendData &SendData, std::string ssid,
+uint8_t Core::connectWifi(SendData &sendData, std::string ssid,
                           std::string pass) {
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
@@ -239,18 +238,18 @@ uint8_t Core::connectWifi(SendData &SendData, std::string ssid,
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_SSID,
                  std::span<uint8_t>((uint8_t *)ssid.data(), ssid.size()), true,
                  this->key, bufferSpan);
-    fillSendData(msg, SendData);
+    fillSendData(msg, sendData);
   }
   {
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_PWD,
                  std::span<uint8_t>((uint8_t *)pass.data(), pass.size()), true,
                  this->key, bufferSpan);
-    fillSendData(msg, SendData);
+    fillSendData(msg, sendData);
   }
   {
     msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::END,
                  std::span<uint8_t>(), false, NULL, bufferSpan);
-    fillSendData(msg, SendData);
+    fillSendData(msg, sendData);
   }
   return 0;
 }

@@ -64,10 +64,10 @@ public:
   uint8_t onReceiveData(std::span<uint8_t>);
 
   // function are
-  uint8_t negotiateKey(SendData &SendData);
-  uint8_t custom(SendData &SendData, std::vector<uint8_t>);
-  uint8_t scanWifi(SendData &SendData);
-  uint8_t connectWifi(SendData &SendData, std::string ssid, std::string pass);
+  uint8_t negotiateKey(SendData &sendData);
+  uint8_t custom(SendData &sendData, std::vector<uint8_t>);
+  uint8_t scanWifi(SendData &sendData);
+  uint8_t connectWifi(SendData &sendData, std::string ssid, std::string pass);
 
 private:
   uint8_t *buffer;
