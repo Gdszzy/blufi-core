@@ -1,5 +1,4 @@
-#ifndef _DH_H
-#define _DH_H
+#pragma once
 
 #include "boost/multiprecision/cpp_int.hpp"
 #include <span>
@@ -38,5 +37,3 @@ private:
   BigInt pubKey;
 };
 } // namespace dh
-
-#endif //_DH_H

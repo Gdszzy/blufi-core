@@ -1,5 +1,4 @@
-#ifndef _MSG_H
-#define _MSG_H
+#pragma once
 
 #include <cstdint>
 #include <span>
@@ -44,5 +43,3 @@ private:
   bool end = false;
 };
 } // namespace msg
-
-#endif //_MSG_H

@@ -1,5 +1,4 @@
-#ifndef _BLUFI_H
-#define _BLUFI_H
+#pragma once
 
 #include "dh.h"
 #include "msg.h"
@@ -84,5 +83,3 @@ private:
   OnMessage onMessage;
 };
 } // namespace blufi
-
-#endif //_BLUFI_H
