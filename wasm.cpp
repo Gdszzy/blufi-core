@@ -34,29 +34,10 @@ val vector2val(std::vector<std::vector<uint8_t>> &data) {
 }
 
 blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
-  return new blufi::Core(mtu, [=](uint8_t type, uint8_t subType, void *data) {
-    // consoleLog("on msg");
-    if(type == msg::Type::VALUE) {
-      if(subType == msg::SubType::WIFI_LIST_NEG) {
-        // 只有wifi列表需要单独处理
-        std::vector<blufi::Wifi> *list = (std::vector<blufi::Wifi> *)data;
-        val wifiList = val::array();
-        for(int i = 0; i < list->size(); i++) {
-          blufi::Wifi &wifi = list->at(i);
-          val wifiInfo = val::object();
-          wifiInfo.set("ssid", wifi.ssid);
-          wifiInfo.set("rssi", wifi.rssi);
-          wifiList.set(i, wifiInfo);
-        }
-        // 回调
-        OnMessage(type, subType, wifiList);
-        return;
-      }
-    }
-    // 其他都当成字节数组处理
-    std::vector<uint8_t> *bytes = (std::vector<uint8_t> *)data;
-    OnMessage(type, subType, typed_memory_view(bytes->size(), bytes->data()));
-  });
+  return new blufi::Core(
+      mtu, [=](uint8_t type, uint8_t subType, std::vector<uint8_t> *data) {
+        OnMessage(type, subType, typed_memory_view(data->size(), data->data()));
+      });
 }
 
 val scanWifi(blufi::Core &core) {

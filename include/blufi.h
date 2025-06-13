@@ -46,14 +46,10 @@ typedef struct {
   std::int8_t rssi;
 } Wifi;
 
-// using NegotiateResult = std::function<void(int result)>;
-// using ScanWifiResult = std::function<void(const std::vector<Wifi> &)>;
-// using BytesResult = std::function<void(const std::span<uint8_t> &)>;
+std::vector<Wifi> parseWifi(std::vector<uint8_t> &data);
 
-// using OnResult = std::variant<BytesResult, NegotiateResult, ScanWifiResult>;
-
-using OnMessage =
-    std::function<void(uint8_t type, uint8_t subType, void *data)>;
+using OnMessage = std::function<void(uint8_t type, uint8_t subType,
+                                     std::vector<uint8_t> *data)>;
 
 using SendData = std::vector<std::vector<uint8_t>>;
 

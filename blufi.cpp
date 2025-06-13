@@ -3,7 +3,7 @@
 #include "md5.h"
 #include "uaes.h"
 
-extern void consoleLog(std::string);
+// extern void consoleLog(std::string);
 
 namespace blufi {
 
@@ -88,29 +88,11 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
     // consoleLog("end");
     // process buffer
     if(type == msg::Type::VALUE) {
-      if(subType == msg::SubType::WIFI_LIST_NEG) {
-        // wifi list
-        std::vector<Wifi> list;
-        int i = 0;
-        while(i < bodyBuffer.size()) {
-          auto len = bodyBuffer[i];
-          i += 1;
-          int8_t rssi = (int8_t)(bodyBuffer[i] - 0xFF);
-          std::string ssid((char *)bodyBuffer.data() + i + 1, len - 1);
-          list.push_back(Wifi{.ssid = ssid, .rssi = rssi});
-          i += len;
-        }
-        this->onMessage(type, subType, &list);
-        // std::get<ScanWifiResult>(this->onResult)(list);
-      } else if(subType == msg::SubType::NEG) {
-        // consoleLog("neg " + std::to_string(this->task));
-        // negotiate result
-        // consoleLog("neg 2");
+      if(subType == msg::SubType::NEG) {
         if(this->key) {
           free(this->key);
           this->key = NULL;
         }
-        // consoleLog("body length: " + std::to_string(bodyBuffer.size()));
         auto key = this->tmpKey->generateKey(bodyBuffer);
         this->key = (uint8_t *)malloc(16);
         MD5Context ctx;
@@ -119,11 +101,6 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
         md5Finalize(&ctx);
         // copy
         std::copy(ctx.digest, ctx.digest + 16, this->key);
-        // char buf[33];
-        // for(int i = 0; i < 16; i++) {
-        //   sprintf(buf + (i * 2), "%02x", this->key[i]);
-        // }
-        // consoleLog(buf);
         // send result
         SendData setSecModeBuffer;
         {
@@ -134,6 +111,8 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
         }
         // 这个消息体正常只有一片
         this->onMessage(type, subType, &setSecModeBuffer[0]);
+      } else if(subType == msg::SubType::WIFI_LIST_NEG) {
+        this->onMessage(type, subType, &bodyBuffer);
       } else if(subType == msg::SubType::CUSTOM_DATA) {
         // custom data
         this->onMessage(type, subType, &bodyBuffer);
@@ -151,6 +130,7 @@ uint8_t Core::onReceiveData(std::span<uint8_t> data) {
       // invalid type
       return 0x50;
     }
+    bodyBuffer.clear();
   }
   return 0;
 }
@@ -252,5 +232,19 @@ uint8_t Core::connectWifi(SendData &sendData, std::string ssid,
     fillSendData(msg, sendData);
   }
   return 0;
+}
+
+std::vector<Wifi> parseWifi(std::vector<uint8_t> &data) {
+  std::vector<Wifi> list;
+  int i = 0;
+  while(i < data.size()) {
+    auto len = data[i];
+    i += 1;
+    int8_t rssi = (int8_t)(data[i] - 0xFF);
+    std::string ssid((char *)data.data() + i + 1, len - 1);
+    list.push_back(Wifi{.ssid = ssid, .rssi = rssi});
+    i += len;
+  }
+  return list;
 }
 } // namespace blufi
