@@ -30,4 +30,17 @@ target_include_directories(blufi PUBLIC
     ${CMAKE_SOURCE_DIR}/include 
 )
 target_link_libraries(blufi PRIVATE core)
-target_link_options(blufi PRIVATE -lembind -Os --post-js=${CMAKE_SOURCE_DIR}/mixin.js --minify 0 -flto -sDYNAMIC_EXECUTION=0 -sEXPORT_ES6=1 -sENVIRONMENT=webview -sINCOMING_MODULE_JS_API=[instantiateWasm,locateFile])
+target_link_options(
+    blufi 
+    PRIVATE 
+    -lembind 
+    -Os 
+    --post-js=${CMAKE_SOURCE_DIR}/mixin.js 
+    --minify 0 
+    -flto 
+    -sDYNAMIC_EXECUTION=0 
+    -sEXPORT_ES6=1 
+    -sENVIRONMENT=webview 
+    -sINCOMING_MODULE_JS_API=[instantiateWasm,locateFile,postRun]
+    -s EXPORTED_FUNCTIONS=[_free,_malloc]
+)

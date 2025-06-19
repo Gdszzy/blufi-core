@@ -178,12 +178,12 @@ uint8_t Core::negotiateKey(SendData &sendData) {
   }
   return 0;
 }
-uint8_t Core::custom(SendData &sendData, std::vector<uint8_t> data) {
+uint8_t Core::custom(SendData &sendData, std::span<uint8_t> data) {
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
-  msg::Msg msg(msg::Type::VALUE, msg::SubType::CUSTOM_DATA, std::span(data),
-               true, this->key, bufferSpan);
+  msg::Msg msg(msg::Type::VALUE, msg::SubType::CUSTOM_DATA, data, true,
+               this->key, bufferSpan);
   fillSendData(msg, sendData);
   return 0;
 }

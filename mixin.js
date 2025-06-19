@@ -42,4 +42,36 @@
     }
     return list
   }
+  // 调用函数时，将js中的字节拷贝到wasm中，调用完后自动释放
+  function safeBytesCall (func, ...bytesArray) {
+    const args = bytesArray.map(bytes => {
+      const ptr = Module._malloc(bytes.length)
+      HEAPU8.subarray(ptr, ptr + bytes.length).set(bytes)
+      return { ptr, length: bytes.length }
+    })
+    try {
+      return func(...args)
+    } finally {
+      args.map(bytes => {
+        Module._free(bytes.ptr)
+      })
+    }
+  }
+  function postRun () {
+    Module.BlufiCore.prototype.custom = function (bytes) {
+      return safeBytesCall((bytes) => {
+        return this.customInternal(bytes.ptr, bytes.length)
+      }, bytes)
+    }
+    Module.BlufiCore.prototype.onReceiveData = function (bytes) {
+      return safeBytesCall((bytes) => {
+        return this.onReceiveDataInternal(bytes.ptr, bytes.length)
+      }, bytes)
+    }
+  }
+  if (runtimeInitialized) {
+    postRun();
+  } else {
+    addOnPostRun(postRun)
+  }
 })();

@@ -15,15 +15,6 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(OnMessage);
 
 blufi::SendData sendData;
 
-std::vector<uint8_t> val2vector(val list) {
-  std::vector<uint8_t> arr;
-  size_t len = list["length"].as<size_t>();
-  for(int i = 0; i < len; i++) {
-    arr.push_back(list[i].as<uint8_t>());
-  }
-  return arr;
-}
-
 val vector2val(std::vector<std::vector<uint8_t>> &data) {
   val arr = val::array();
   for(int i = 0; i < data.size(); i++) {
@@ -52,9 +43,9 @@ val connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
   return vector2val(sendData);
 };
 
-val custom(blufi::Core &core, val data) {
+val custom(blufi::Core &core, uintptr_t data, size_t size) {
   sendData.clear();
-  std::ignore = core.custom(sendData, val2vector(data));
+  std::ignore = core.custom(sendData, std::span((uint8_t *)data, size));
   return vector2val(sendData);
 }
 
@@ -64,9 +55,8 @@ val negotiateKey(blufi::Core &core) {
   return vector2val(sendData);
 }
 
-int onReceiveData(blufi::Core &core, val bytes) {
-  auto buf = val2vector(bytes);
-  return core.onReceiveData(std::span(buf));
+int onReceiveData(blufi::Core &core, uintptr_t data, size_t size) {
+  return core.onReceiveData(std::span((uint8_t *)data, size));
 }
 
 EMSCRIPTEN_BINDINGS(blufi) {
@@ -74,9 +64,9 @@ EMSCRIPTEN_BINDINGS(blufi) {
 
   class_<blufi::Core>("BlufiCore")
       .constructor(&newBlufiCore, allow_raw_pointers())
-      .function("onReceiveData", &onReceiveData, async())
-      .function("negotiateKey", &negotiateKey, async())
-      .function("scanWifi", &scanWifi, async())
-      .function("connectWifi", &connectWifi, async())
-      .function("custom", &custom, async());
+      .function("onReceiveDataInternal", &onReceiveData)
+      .function("negotiateKey", &negotiateKey)
+      .function("scanWifi", &scanWifi)
+      .function("connectWifi", &connectWifi)
+      .function("customInternal", &custom);
 }

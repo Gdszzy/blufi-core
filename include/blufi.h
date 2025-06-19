@@ -44,7 +44,7 @@ public:
   uint8_t onReceiveData(std::span<uint8_t>);
 
   uint8_t negotiateKey(SendData &sendData);
-  uint8_t custom(SendData &sendData, std::vector<uint8_t>);
+  uint8_t custom(SendData &sendData, std::span<uint8_t>);
   uint8_t scanWifi(SendData &sendData);
   uint8_t connectWifi(SendData &sendData, std::string ssid, std::string pass);
 
