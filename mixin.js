@@ -1,5 +1,6 @@
 (() => {
   const textDecoder = new TextDecoder()
+  const memoryView = new DataView(HEAPU8.buffer)
   Module.MsgType = {
     CONTROL_VALUE: 0,
     VALUE: 1
@@ -57,21 +58,40 @@
       })
     }
   }
-  function postRun () {
-    Module.BlufiCore.prototype.custom = function (bytes) {
-      return safeBytesCall((bytes) => {
-        return this.customInternal(bytes.ptr, bytes.length)
-      }, bytes)
+  function parseDatachan (ptr) {
+    const list = []
+    while (ptr) {
+      const data = memoryView.getUint32(ptr, true);
+      const len = memoryView.getUint32(ptr + 4, true)
+      ptr = memoryView.getUint32(ptr + 8, true);
+      list.push(HEAPU8.subarray(data, data + len))
     }
-    Module.BlufiCore.prototype.onReceiveData = function (bytes) {
-      return safeBytesCall((bytes) => {
-        return this.onReceiveDataInternal(bytes.ptr, bytes.length)
-      }, bytes)
-    }
+    return list
   }
-  if (runtimeInitialized) {
-    postRun();
-  } else {
-    addOnPostRun(postRun)
+  const registry = new FinalizationRegistry((core) => {
+    core.delete()
+  })
+  Module.BlufiCore = function (mtu, callback) {
+    const core = new Module.BlufiCoreInternal(mtu, callback)
+    registry.register(this, core)
+    this.negotiateKey = () => {
+      return parseDatachan(core.negotiateKeyInternal())
+    }
+    this.connectWifi = (ssid, pass) => {
+      return parseDatachan(core.connectWifiInternal(ssid, pass))
+    }
+    this.scanWifi = () => {
+      return parseDatachan(core.scanWifiInternal())
+    }
+    this.custom = (bytes) => {
+      return parseDatachan(safeBytesCall((bytes) => {
+        return core.customInternal(bytes.ptr, bytes.length)
+      }, bytes))
+    }
+    this.onReceiveData = (bytes) => {
+      return safeBytesCall((bytes) => {
+        return core.onReceiveDataInternal(bytes.ptr, bytes.length)
+      }, bytes)
+    }
   }
 })();

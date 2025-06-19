@@ -13,46 +13,44 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(OnMessage);
 //   console.call<void>("log", msg);
 // }
 
-blufi::SendData sendData;
+DataChan *datachan = NULL;
 
-val vector2val(std::vector<std::vector<uint8_t>> &data) {
-  val arr = val::array();
-  for(int i = 0; i < data.size(); i++) {
-    std::vector<uint8_t> &slice = data[i];
-    arr.set(i, typed_memory_view(slice.size(), slice.data()));
+void initDataChan() {
+  if(datachan != NULL) {
+    freeDataChan(datachan);
   }
-  return arr;
+  datachan = newDataChan();
 }
 
 blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
   return new blufi::Core(
-      mtu, [=](uint8_t type, uint8_t subType, std::vector<uint8_t> *data) {
-        OnMessage(type, subType, typed_memory_view(data->size(), data->data()));
+      mtu, [=](uint8_t type, uint8_t subType, uint8_t *data, size_t size) {
+        OnMessage(type, subType, typed_memory_view(size, data));
       });
 }
 
-val scanWifi(blufi::Core &core) {
-  sendData.clear();
-  std::ignore = core.scanWifi(sendData);
-  return vector2val(sendData);
+uintptr_t scanWifi(blufi::Core &core) {
+  initDataChan();
+  std::ignore = core.scanWifi(datachan);
+  return (uintptr_t)datachan;
 }
 
-val connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
-  sendData.clear();
-  std::ignore = core.connectWifi(sendData, ssid, pass);
-  return vector2val(sendData);
+uintptr_t connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
+  initDataChan();
+  std::ignore = core.connectWifi(datachan, ssid, pass);
+  return (uintptr_t)datachan;
 };
 
-val custom(blufi::Core &core, uintptr_t data, size_t size) {
-  sendData.clear();
-  std::ignore = core.custom(sendData, std::span((uint8_t *)data, size));
-  return vector2val(sendData);
+uintptr_t custom(blufi::Core &core, uintptr_t data, size_t size) {
+  initDataChan();
+  std::ignore = core.custom(datachan, std::span((uint8_t *)data, size));
+  return (uintptr_t)datachan;
 }
 
-val negotiateKey(blufi::Core &core) {
-  sendData.clear();
-  std::ignore = core.negotiateKey(sendData);
-  return vector2val(sendData);
+uintptr_t negotiateKey(blufi::Core &core) {
+  initDataChan();
+  std::ignore = core.negotiateKey(datachan);
+  return (uintptr_t)datachan;
 }
 
 int onReceiveData(blufi::Core &core, uintptr_t data, size_t size) {
@@ -62,11 +60,11 @@ int onReceiveData(blufi::Core &core, uintptr_t data, size_t size) {
 EMSCRIPTEN_BINDINGS(blufi) {
   register_type<OnMessage>("(type:number,subType:number,data:any)=>void");
 
-  class_<blufi::Core>("BlufiCore")
+  class_<blufi::Core>("BlufiCoreInternal")
       .constructor(&newBlufiCore, allow_raw_pointers())
       .function("onReceiveDataInternal", &onReceiveData)
-      .function("negotiateKey", &negotiateKey)
-      .function("scanWifi", &scanWifi)
-      .function("connectWifi", &connectWifi)
+      .function("negotiateKeyInternal", &negotiateKey)
+      .function("scanWifiInternal", &scanWifi)
+      .function("connectWifiInternal", &connectWifi)
       .function("customInternal", &custom);
 }

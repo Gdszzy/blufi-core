@@ -17,7 +17,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/uaes)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/md5-c)
 
 # blufi
-add_library(core msg.cpp dh.cpp blufi.cpp)
+add_library(core msg.cpp dh.cpp blufi.cpp data_chan.cpp)
 target_include_directories(core PUBLIC 
     ${CMAKE_SOURCE_DIR}/include 
     3rd/multiprecision-Boost_1_86_0/include

@@ -3,6 +3,7 @@
 #include "dh.h"
 #include "msg.h"
 #include <cstdint>
+#include <data_chan.h>
 #include <deque>
 #include <functional>
 #include <span>
@@ -29,12 +30,10 @@ typedef struct {
 // Callback trigger when a full message received. So this callback must not
 // block
 using OnMessage = std::function<void(uint8_t type, uint8_t subType,
-                                     std::vector<uint8_t> *data)>;
+                                     uint8_t *data, size_t size)>;
 
 // OnMessage just callback with bytes. Call parseWifi to get the wifi list
 std::vector<Wifi> parseWifi(std::vector<uint8_t> &data);
-
-using SendData = std::vector<std::vector<uint8_t>>;
 
 class Core {
 public:
@@ -43,10 +42,10 @@ public:
   // Call this function when message received.
   uint8_t onReceiveData(std::span<uint8_t>);
 
-  uint8_t negotiateKey(SendData &sendData);
-  uint8_t custom(SendData &sendData, std::span<uint8_t>);
-  uint8_t scanWifi(SendData &sendData);
-  uint8_t connectWifi(SendData &sendData, std::string ssid, std::string pass);
+  uint8_t negotiateKey(DataChan *datachan);
+  uint8_t custom(DataChan *datachan, std::span<uint8_t>);
+  uint8_t scanWifi(DataChan *datachan);
+  uint8_t connectWifi(DataChan *datachan, std::string ssid, std::string pass);
 
 private:
   int mtu;
@@ -67,6 +66,6 @@ private:
   // callback
   OnMessage onMessage;
 
-  void fillSendData(msg::Msg &msg, SendData &sendData);
+  DataChan *fillDataChan(msg::Msg &msg, DataChan *datachan);
 };
 } // namespace blufi
