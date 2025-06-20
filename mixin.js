@@ -58,13 +58,14 @@
       })
     }
   }
-  function parseDatachan (ptr) {
+  function parseFlattenBuffer (arr) {
     const list = []
-    while (ptr) {
-      const data = memoryView.getUint32(ptr, true);
-      const len = memoryView.getUint32(ptr + 4, true)
-      ptr = memoryView.getUint32(ptr + 8, true);
-      list.push(HEAPU8.subarray(data, data + len))
+    let i = arr.byteOffset;
+    while (i < arr.byteOffset + arr.length) {
+      const len = memoryView.getUint32(i, true)
+      i += 4
+      list.push(HEAPU8.subarray(i, i + len))
+      i += len
     }
     return list
   }
@@ -75,16 +76,16 @@
     const core = new Module.BlufiCoreInternal(mtu, callback)
     registry.register(this, core)
     this.negotiateKey = () => {
-      return parseDatachan(core.negotiateKeyInternal())
+      return parseFlattenBuffer(core.negotiateKeyInternal())
     }
     this.connectWifi = (ssid, pass) => {
-      return parseDatachan(core.connectWifiInternal(ssid, pass))
+      return parseFlattenBuffer(core.connectWifiInternal(ssid, pass))
     }
     this.scanWifi = () => {
-      return parseDatachan(core.scanWifiInternal())
+      return parseFlattenBuffer(core.scanWifiInternal())
     }
     this.custom = (bytes) => {
-      return parseDatachan(safeBytesCall((bytes) => {
+      return parseFlattenBuffer(safeBytesCall((bytes) => {
         return core.customInternal(bytes.ptr, bytes.length)
       }, bytes))
     }

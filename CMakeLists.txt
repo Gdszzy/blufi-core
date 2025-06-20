@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.13)
 project(blufi)
 
-set(CMAKE_C_COMPILER emcc)
-set(CMAKE_CXX_COMPILER em++)
+# set(CMAKE_C_COMPILER emcc)
+# set(CMAKE_CXX_COMPILER em++)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_EXECUTABLE_SUFFIX ".js")
+# set(CMAKE_EXECUTABLE_SUFFIX ".js")
 
-set(FLAGS_COMMON "-Wall -Os")
+set(FLAGS_COMMON "-Wall -Os -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS_COMMON}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_COMMON}")
 
@@ -17,7 +17,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/uaes)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/md5-c)
 
 # blufi
-add_library(core msg.cpp dh.cpp blufi.cpp data_chan.cpp)
+add_library(core msg.cpp dh.cpp blufi.cpp)
 target_include_directories(core PUBLIC 
     ${CMAKE_SOURCE_DIR}/include 
     3rd/multiprecision-Boost_1_86_0/include
@@ -25,13 +25,14 @@ target_include_directories(core PUBLIC
 target_link_libraries(core PRIVATE uaes md5)
 
 # wasm
-add_executable(blufi wasm.cpp)
-target_include_directories(blufi PUBLIC 
+add_executable(wasm wasm.cpp)
+set_target_properties(wasm PROPERTIES OUTPUT_NAME "blufi")
+target_include_directories(wasm PUBLIC 
     ${CMAKE_SOURCE_DIR}/include 
 )
-target_link_libraries(blufi PRIVATE core)
+target_link_libraries(wasm PRIVATE core)
 target_link_options(
-    blufi 
+    wasm 
     PRIVATE 
     -lembind 
     -Os 
@@ -44,3 +45,10 @@ target_link_options(
     -sINCOMING_MODULE_JS_API=[instantiateWasm,locateFile,postRun]
     -s EXPORTED_FUNCTIONS=[_free,_malloc]
 )
+
+# android
+add_library(android SHARED android.cpp)
+target_include_directories(android PUBLIC 
+    ${CMAKE_SOURCE_DIR}/include 
+)
+target_link_libraries(android PRIVATE core)

@@ -13,14 +13,7 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(OnMessage);
 //   console.call<void>("log", msg);
 // }
 
-DataChan *datachan = NULL;
-
-void initDataChan() {
-  if(datachan != NULL) {
-    freeDataChan(datachan);
-  }
-  datachan = newDataChan();
-}
+blufi::FlattenBuffer flattenBuffer;
 
 blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
   return new blufi::Core(
@@ -29,28 +22,28 @@ blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
       });
 }
 
-uintptr_t scanWifi(blufi::Core &core) {
-  initDataChan();
-  std::ignore = core.scanWifi(datachan);
-  return (uintptr_t)datachan;
+val scanWifi(blufi::Core &core) {
+  flattenBuffer.clear();
+  std::ignore = core.scanWifi(flattenBuffer);
+  return val(typed_memory_view(flattenBuffer.size(), flattenBuffer.data()));
 }
 
-uintptr_t connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
-  initDataChan();
-  std::ignore = core.connectWifi(datachan, ssid, pass);
-  return (uintptr_t)datachan;
+val connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
+  flattenBuffer.clear();
+  std::ignore = core.connectWifi(flattenBuffer, ssid, pass);
+  return val(typed_memory_view(flattenBuffer.size(), flattenBuffer.data()));
 };
 
-uintptr_t custom(blufi::Core &core, uintptr_t data, size_t size) {
-  initDataChan();
-  std::ignore = core.custom(datachan, std::span((uint8_t *)data, size));
-  return (uintptr_t)datachan;
+val custom(blufi::Core &core, uintptr_t data, size_t size) {
+  flattenBuffer.clear();
+  std::ignore = core.custom(flattenBuffer, std::span((uint8_t *)data, size));
+  return val(typed_memory_view(flattenBuffer.size(), flattenBuffer.data()));
 }
 
-uintptr_t negotiateKey(blufi::Core &core) {
-  initDataChan();
-  std::ignore = core.negotiateKey(datachan);
-  return (uintptr_t)datachan;
+val negotiateKey(blufi::Core &core) {
+  flattenBuffer.clear();
+  std::ignore = core.negotiateKey(flattenBuffer);
+  return val(typed_memory_view(flattenBuffer.size(), flattenBuffer.data()));
 }
 
 int onReceiveData(blufi::Core &core, uintptr_t data, size_t size) {

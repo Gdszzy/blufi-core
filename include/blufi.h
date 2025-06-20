@@ -3,7 +3,6 @@
 #include "dh.h"
 #include "msg.h"
 #include <cstdint>
-#include <data_chan.h>
 #include <deque>
 #include <functional>
 #include <span>
@@ -35,6 +34,8 @@ using OnMessage = std::function<void(uint8_t type, uint8_t subType,
 // OnMessage just callback with bytes. Call parseWifi to get the wifi list
 std::vector<Wifi> parseWifi(std::vector<uint8_t> &data);
 
+using FlattenBuffer = std::vector<uint8_t>;
+
 class Core {
 public:
   Core(int mtu, OnMessage onMessage);
@@ -42,10 +43,11 @@ public:
   // Call this function when message received.
   uint8_t onReceiveData(std::span<uint8_t>);
 
-  uint8_t negotiateKey(DataChan *datachan);
-  uint8_t custom(DataChan *datachan, std::span<uint8_t>);
-  uint8_t scanWifi(DataChan *datachan);
-  uint8_t connectWifi(DataChan *datachan, std::string ssid, std::string pass);
+  uint8_t negotiateKey(FlattenBuffer &buffer);
+  uint8_t custom(FlattenBuffer &buffer, std::span<uint8_t>);
+  uint8_t scanWifi(FlattenBuffer &buffer);
+  uint8_t connectWifi(FlattenBuffer &buffer, std::string ssid,
+                      std::string pass);
 
 private:
   int mtu;
@@ -66,6 +68,6 @@ private:
   // callback
   OnMessage onMessage;
 
-  DataChan *fillDataChan(msg::Msg &msg, DataChan *datachan);
+  void fillBuffer(msg::Msg &msg, FlattenBuffer &buffer);
 };
 } // namespace blufi
