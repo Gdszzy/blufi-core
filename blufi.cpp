@@ -144,7 +144,8 @@ inline void pushBytes2Vec(std::vector<uint8_t> *buff,
   buff->insert(buff->end(), key->begin(), key->end());
 }
 
-uint8_t Core::negotiateKey(FlattenBuffer &buffer) {
+uint8_t Core::negotiateKey() {
+  flattenBuffer.clear();
   if(this->tmpKey) {
     return ErrorCode::KeyStateNotMatch;
   }
@@ -159,7 +160,7 @@ uint8_t Core::negotiateKey(FlattenBuffer &buffer) {
                       static_cast<uint8_t>(total)};
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG,
                  std::span(data, sizeof(data)), false, NULL, this->bufferSpan);
-    fillBuffer(msg, buffer);
+    fillBuffer(msg, flattenBuffer);
   }
   // send key
   {
@@ -179,27 +180,29 @@ uint8_t Core::negotiateKey(FlattenBuffer &buffer) {
     }
     msg::Msg msg(msg::Type::VALUE, msg::SubType::NEG, keyBuffer, false, NULL,
                  bufferSpan);
-    fillBuffer(msg, buffer);
+    fillBuffer(msg, flattenBuffer);
   }
   return 0;
 }
-uint8_t Core::custom(FlattenBuffer &buffer, std::span<uint8_t> data) {
+uint8_t Core::custom(std::span<uint8_t> data) {
+  flattenBuffer.clear();
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
   msg::Msg msg(msg::Type::VALUE, msg::SubType::CUSTOM_DATA, data, true,
                this->key, bufferSpan);
-  fillBuffer(msg, buffer);
+  fillBuffer(msg, flattenBuffer);
   return 0;
 }
-uint8_t Core::scanWifi(FlattenBuffer &buffer) {
+uint8_t Core::scanWifi() {
+  flattenBuffer.clear();
   msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::WIFI_NEG,
                std::span<uint8_t>(), false, NULL, bufferSpan);
-  fillBuffer(msg, buffer);
+  fillBuffer(msg, flattenBuffer);
   return 0;
 }
-uint8_t Core::connectWifi(FlattenBuffer &buffer, std::string ssid,
-                          std::string pass) {
+uint8_t Core::connectWifi(std::string ssid, std::string pass) {
+  flattenBuffer.clear();
   if(this->key == NULL) {
     return ErrorCode::KeyStateNotMatch;
   }
@@ -207,18 +210,18 @@ uint8_t Core::connectWifi(FlattenBuffer &buffer, std::string ssid,
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_SSID,
                  std::span<uint8_t>((uint8_t *)ssid.data(), ssid.size()), true,
                  this->key, bufferSpan);
-    fillBuffer(msg, buffer);
+    fillBuffer(msg, flattenBuffer);
   }
   {
     msg::Msg msg(msg::Type::VALUE, msg::SubType::SET_PWD,
                  std::span<uint8_t>((uint8_t *)pass.data(), pass.size()), true,
                  this->key, bufferSpan);
-    fillBuffer(msg, buffer);
+    fillBuffer(msg, flattenBuffer);
   }
   {
     msg::Msg msg(msg::Type::CONTROL_VALUE, msg::SubType::END,
                  std::span<uint8_t>(), false, NULL, bufferSpan);
-    fillBuffer(msg, buffer);
+    fillBuffer(msg, flattenBuffer);
   }
   return 0;
 }
@@ -235,6 +238,10 @@ std::vector<Wifi> parseWifi(std::vector<uint8_t> &data) {
     i += len;
   }
   return list;
+}
+
+const std::span<uint8_t> Core::getFlattenBuffer() {
+  return std::span(flattenBuffer.data(), flattenBuffer.size());
 }
 } // namespace blufi
 

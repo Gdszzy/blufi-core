@@ -43,11 +43,12 @@ public:
   // Call this function when message received.
   uint8_t onReceiveData(std::span<uint8_t>);
 
-  uint8_t negotiateKey(FlattenBuffer &buffer);
-  uint8_t custom(FlattenBuffer &buffer, std::span<uint8_t>);
-  uint8_t scanWifi(FlattenBuffer &buffer);
-  uint8_t connectWifi(FlattenBuffer &buffer, std::string ssid,
-                      std::string pass);
+  uint8_t negotiateKey();
+  uint8_t custom(std::span<uint8_t>);
+  uint8_t scanWifi();
+  uint8_t connectWifi(std::string ssid, std::string pass);
+
+  const std::span<uint8_t> getFlattenBuffer();
 
 private:
   int mtu;
@@ -67,6 +68,8 @@ private:
   std::vector<uint8_t> bodyBuffer;
   // callback
   OnMessage onMessage;
+
+  FlattenBuffer flattenBuffer;
 
   void fillBuffer(msg::Msg &msg, FlattenBuffer &buffer);
 };
