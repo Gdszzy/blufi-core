@@ -3,18 +3,22 @@
 #include <map>
 
 std::map<jlong, jobject> callbackMap;
-
+extern "C" {
 JNIEXPORT jlong JNICALL Java_com_gdszzy_blufi_Core_newCore(
     JNIEnv *env, jobject obj, jint mtu, jobject onMessageCallback) {
   jobject globalOnMessageCallback = env->NewGlobalRef(onMessageCallback);
   jclass callbackCls = env->GetObjectClass(globalOnMessageCallback);
   jmethodID onMessageMethod =
       env->GetMethodID(callbackCls, "onMessage", "(BBLjava/nio/ByteBuffer;)V");
+  JavaVM *vm;
+  env->GetJavaVM(&vm);
   blufi::Core *ptr = new blufi::Core(mtu, [=](uint8_t type, uint8_t subType,
                                               uint8_t *data, size_t size) {
-    env->CallVoidMethod(globalOnMessageCallback, onMessageMethod,
-                        static_cast<jbyte>(type), static_cast<jbyte>(subType),
-                        env->NewDirectByteBuffer(data, size));
+    JNIEnv *subEnv;
+    vm->GetEnv((void **)&subEnv, JNI_VERSION_1_6);
+    subEnv->CallVoidMethod(
+        globalOnMessageCallback, onMessageMethod, static_cast<jbyte>(type),
+        static_cast<jbyte>(subType), subEnv->NewDirectByteBuffer(data, size));
   });
   jlong res = (jlong)ptr;
   // 存储到全局
@@ -81,4 +85,5 @@ JNIEXPORT jobject JNICALL Java_com_gdszzy_blufi_Core_connectWifi(
   std::ignore = core->connectWifi(ssidLocal, passLocal);
   auto buffer = core->getFlattenBuffer();
   return env->NewDirectByteBuffer(buffer.data(), buffer.size());
+}
 }
