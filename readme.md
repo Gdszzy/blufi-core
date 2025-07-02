@@ -1,10 +1,8 @@
 ## blufi-core
 
-This library is mainly to simplify the use of blufi.
+This library is mainly to simplify the use of [blufi](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/ble/blufi.html).
 
-The core written by C++ and can be compiled to WebAssembly and JNI library.
-
-Not it support:
+It currently supports:
 
 - web (WebAssembly+JavaScript)
 - Android (JNI)
@@ -23,13 +21,13 @@ graph TD
         C[Core]
     end
 
-    A1 -->|Call API| C
+    A1 -->|Message| C
     C  -->|Frames need to send|A1
-    A2 -->|Transfer all frames into core| C
+    A2 -->|Frames received| C
     C -->|When a complete message is received| A3
 ```
 
-- Your application: Process connections and the transmissions with BLE. Sending and receiving frames.
+- Your application: Process connections and the transmissions with ESP32. Sending and receiving frames.
 - Blufi-Core: Encoding message into frames and decoding frames into message.
 
 ### Usage (WebAssembly+JavaScript)
@@ -46,8 +44,8 @@ const blufiModule = (blufiModule = await blufiLoader({
   locateFile: () => blufiWasmUrl
 }))
 
-// Scanning and connect to your BLE device
-connectBLEDevice()
+// Scanning and connect to your ESP32 device
+await connectBLEDevice()
 const blufiWriteChar = getBlufiWriteChar()
 const blufiNotifyChar = getBlufiReadChar()
 
@@ -70,7 +68,7 @@ const core = new blufiModule.BlufiCore(
 blufiNotifyChar.oncharacteristicvaluechanged = (evt) => {
   const buf = new Uint8Array(evt.currentTarget.value.buffer)
   // Send all data received into core
-  // When a complete message received. onBlufiMessageCallback will be called
+  // When a complete message received. onBlufiMessageCallback will be invoked
   core.onReceiveData(buf)
 }
 blufiNotifyChar.startNotifications()
@@ -82,7 +80,7 @@ const negotiateKeyMessage: Array<Uint8Array> = core.negotiateKey()
 // core.connectWifi(ssid, password)
 // core.custom(new Uint8Array([0xff, 0xaa]))
 
-// Then sent them by yourself.
+// Then send them by yourself.
 for (const data of negotiateKeyMessage) {
   await blufiWriteChar.write(data)
 }
