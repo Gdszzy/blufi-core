@@ -180,15 +180,17 @@ class Core(mtu:Int,callback: OnMessageCallback) {
 
 About negotiate key. For example you have 5 frames to send.
 
-device --- frame1 --> ESP32
-device --- frame2 --> ESP32
-device --- frame3 --> ESP32
+- device --- frame1 --> ESP32
+- device --- frame2 --> ESP32
+- device --- frame3 --> ESP32
 
-// ESP32 will respond before sending is completed
-device <-- frame1 --- ESP32
+> ESP32 will respond before sending is completed
 
-device --- frame4 --> ESP32
-device --- frame5 --> ESP32
+- device <-- frame1 --- ESP32
 
-// Make sure the response frame from SUBTYPE_NEG message callback is sent after 5 frames of the negotiate key.
-device --- frame6 --> ESP32
+- device --- frame4 --> ESP32
+- device --- frame5 --> ESP32
+
+> Make sure the response frame from SUBTYPE_NEG message callback is sent after 5 frames of the negotiate key.
+
+- device --- frame6(response) --> ESP32
