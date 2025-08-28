@@ -13,8 +13,7 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(OnMessage);
 //   console.call<void>("log", msg);
 // }
 
-inline val getFlattenBuffer(blufi::Core &core) {
-  auto buffer = core.getFlattenBuffer();
+inline val getFlattenBuffer(blufi::FlattenBuffer &buffer) {
   return val(typed_memory_view(buffer.size(), buffer.data()));
 }
 
@@ -26,23 +25,27 @@ blufi::Core *newBlufiCore(int mtu, OnMessage OnMessage) {
 }
 
 val scanWifi(blufi::Core &core) {
-  std::ignore = core.scanWifi();
-  return getFlattenBuffer(core);
+  blufi::FlattenBuffer buffer;
+  std::ignore = core.scanWifi(buffer);
+  return getFlattenBuffer(buffer);
 }
 
 val connectWifi(blufi::Core &core, std::string ssid, std::string pass) {
-  std::ignore = core.connectWifi(ssid, pass);
-  return getFlattenBuffer(core);
+  blufi::FlattenBuffer buffer;
+  std::ignore = core.connectWifi(ssid, pass, buffer);
+  return getFlattenBuffer(buffer);
 };
 
 val custom(blufi::Core &core, uintptr_t data, size_t size) {
-  std::ignore = core.custom(std::span((uint8_t *)data, size));
-  return getFlattenBuffer(core);
+  blufi::FlattenBuffer buffer;
+  std::ignore = core.custom(std::span((uint8_t *)data, size), buffer);
+  return getFlattenBuffer(buffer);
 }
 
 val negotiateKey(blufi::Core &core) {
-  std::ignore = core.negotiateKey();
-  return getFlattenBuffer(core);
+  blufi::FlattenBuffer buffer;
+  std::ignore = core.negotiateKey(buffer);
+  return getFlattenBuffer(buffer);
 }
 
 int onReceiveData(blufi::Core &core, uintptr_t data, size_t size) {

@@ -80,11 +80,11 @@ JNIEXPORT jobject Java_com_gdszzy_blufi_Core_negotiateKey(JNIEnv *env,
                                                           jobject obj,
                                                           jlong ptr) {
   blufi::Core *core = (blufi::Core *)ptr;
-  uint8_t ret = core->negotiateKey();
+  blufi::FlattenBuffer buffer;
+  uint8_t ret = core->negotiateKey(buffer);
   if(ret) {
     throwRuntimeException(env, std::to_string(ret).c_str());
   }
-  auto buffer = core->getFlattenBuffer();
   return env->NewDirectByteBuffer(buffer.data(), buffer.size());
 }
 
@@ -97,11 +97,11 @@ JNIEXPORT jobject Java_com_gdszzy_blufi_Core_custom(JNIEnv *env, jobject obj,
   blufi::Core *core = (blufi::Core *)ptr;
   jsize len = env->GetArrayLength(bytes);
   jbyte *data = env->GetByteArrayElements(bytes, nullptr);
-  uint8_t ret = core->custom(std::span((uint8_t *)data, len));
+  blufi::FlattenBuffer buffer;
+  uint8_t ret = core->custom(std::span((uint8_t *)data, len), buffer);
   if(ret) {
     throwRuntimeException(env, std::to_string(ret).c_str());
   }
-  auto buffer = core->getFlattenBuffer();
   return env->NewDirectByteBuffer(buffer.data(), buffer.size());
 }
 
@@ -111,11 +111,11 @@ JNIEXPORT jobject Java_com_gdszzy_blufi_Core_custom(JNIEnv *env, jobject obj,
 JNIEXPORT jobject Java_com_gdszzy_blufi_Core_scanWifi(JNIEnv *env, jobject obj,
                                                       jlong ptr) {
   blufi::Core *core = (blufi::Core *)ptr;
-  uint8_t ret = core->scanWifi();
+  blufi::FlattenBuffer buffer;
+  uint8_t ret = core->scanWifi(buffer);
   if(ret) {
     throwRuntimeException(env, std::to_string(ret).c_str());
   }
-  auto buffer = core->getFlattenBuffer();
   return env->NewDirectByteBuffer(buffer.data(), buffer.size());
 }
 
@@ -129,11 +129,11 @@ JNIEXPORT jobject Java_com_gdszzy_blufi_Core_connectWifi(JNIEnv *env,
   blufi::Core *core = (blufi::Core *)ptr;
   const char *ssidLocal = env->GetStringUTFChars(ssid, nullptr);
   const char *passLocal = env->GetStringUTFChars(pass, nullptr);
-  uint8_t ret = core->connectWifi(ssidLocal, passLocal);
+  blufi::FlattenBuffer buffer;
+  uint8_t ret = core->connectWifi(ssidLocal, passLocal, buffer);
   if(ret) {
     throwRuntimeException(env, std::to_string(ret).c_str());
   }
-  auto buffer = core->getFlattenBuffer();
   return env->NewDirectByteBuffer(buffer.data(), buffer.size());
 }
 }

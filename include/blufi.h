@@ -35,6 +35,7 @@ using OnMessage = std::function<void(uint8_t type, uint8_t subType,
 std::vector<Wifi> parseWifi(std::vector<uint8_t> &data);
 
 using FlattenBuffer = std::vector<uint8_t>;
+using NestedBuffer = std::vector<std::vector<uint8_t>>;
 
 class Core {
 public:
@@ -43,12 +44,14 @@ public:
   // Call this function when message received.
   uint8_t onReceiveData(std::span<uint8_t>);
 
-  uint8_t negotiateKey();
-  uint8_t custom(std::span<uint8_t>);
-  uint8_t scanWifi();
-  uint8_t connectWifi(std::string ssid, std::string pass);
+  template <typename T> uint8_t negotiateKey(T &buffer);
 
-  const std::span<uint8_t> getFlattenBuffer();
+  template <typename T> uint8_t custom(std::span<uint8_t>, T &buffer);
+
+  template <typename T> uint8_t scanWifi(T &buffer);
+
+  template <typename T>
+  uint8_t connectWifi(std::string ssid, std::string pass, T &buffer);
 
 private:
   int mtu;
@@ -69,8 +72,7 @@ private:
   // callback
   OnMessage onMessage;
 
-  FlattenBuffer flattenBuffer;
-
   void fillBuffer(msg::Msg &msg, FlattenBuffer &buffer);
+  void fillBuffer(msg::Msg &msg, NestedBuffer &buffer);
 };
 } // namespace blufi
