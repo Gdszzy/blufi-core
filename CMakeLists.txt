@@ -8,13 +8,13 @@ set(FLAGS_COMMON "-Wall -Os -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS_COMMON}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_COMMON}")
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/uaes)
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/md5-c)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd/uaes)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd/md5-c)
 
 # blufi
 add_library(core msg.cpp dh.cpp blufi.cpp)
 target_include_directories(core PUBLIC 
-    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include 
     3rd/multiprecision-Boost_1_86_0/include
 )
 target_link_libraries(core PRIVATE uaes md5)
@@ -23,7 +23,7 @@ target_link_libraries(core PRIVATE uaes md5)
 add_executable(wasm wasm.cpp)
 set_target_properties(wasm PROPERTIES OUTPUT_NAME "blufi")
 target_include_directories(wasm PUBLIC 
-    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
 target_link_libraries(wasm PRIVATE core)
 target_link_options(
@@ -31,7 +31,7 @@ target_link_options(
     PRIVATE 
     -lembind 
     -Os 
-    --post-js=${CMAKE_SOURCE_DIR}/mixin.js 
+    --post-js=${CMAKE_CURRENT_SOURCE_DIR}/mixin.js 
     --minify 0 
     -flto 
     -sDYNAMIC_EXECUTION=0 
@@ -45,7 +45,7 @@ target_link_options(
 add_library(android SHARED android.cpp)
 set_target_properties(android PROPERTIES OUTPUT_NAME "blufi")
 target_include_directories(android PUBLIC 
-    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
 target_link_libraries(android PRIVATE core)
 add_custom_command(TARGET android POST_BUILD
