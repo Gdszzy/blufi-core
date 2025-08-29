@@ -14,7 +14,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rd/md5-c)
 
 # blufi
 add_library(core msg.cpp dh.cpp blufi.cpp)
-target_include_directories(core PUBLIC 
+target_include_directories(core PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include 
     3rd/multiprecision-Boost_1_86_0/include
 )
@@ -23,7 +23,7 @@ target_link_libraries(core PRIVATE uaes md5)
 # wasm
 add_executable(wasm wasm.cpp)
 set_target_properties(wasm PROPERTIES OUTPUT_NAME "blufi")
-target_include_directories(wasm PUBLIC 
+target_include_directories(wasm PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
 target_link_libraries(wasm PRIVATE core)
@@ -45,7 +45,7 @@ target_link_options(
 # android
 add_library(android SHARED android.cpp)
 set_target_properties(android PROPERTIES OUTPUT_NAME "blufi")
-target_include_directories(android PUBLIC 
+target_include_directories(android PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
 target_link_libraries(android PRIVATE core)
